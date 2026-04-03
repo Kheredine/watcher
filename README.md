@@ -1,6 +1,6 @@
 # watcher
 
-This template should help get you started developing with Vue 3 in Vite.
+AI-powered movie, series, TV show, anime and documentary recommendation app based on mood, time availability, and user preferences.
 
 ## Recommended IDE Setup
 
