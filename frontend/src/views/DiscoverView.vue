@@ -1,41 +1,31 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserLibrary } from '@/composables/useUserLibrary'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
-const { liked, watchlist } = useUserLibrary()
+const { liked } = useUserLibrary()
 const { getTopMoods, getMoodForHour } = useUserPreferences()
 const { t } = useI18n()
 
 const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY
 const TMDB_BASE = 'https://api.themoviedb.org/3'
-const IMG_BASE  = 'https://image.tmdb.org/t/p/w500'
+const IMG_BASE  = 'https://image.tmdb.org/t/p/w342'
 
-// Tabs for trending and top10
-const trendingPeriod = ref('week')
-const top10Period    = ref('week')
-const top10Category  = ref('movie')
+// ── Data refs ─────────────────────────────────────────────────────────
+const personalized  = ref([])
+const trending      = ref([])
+const films         = ref([])
+const series        = ref([])
+const anime         = ref([])
+const tvShows       = ref([])
+const docs          = ref([])
 
-// Categories for top 10
-const categories = [
-  { id: 'movie',         label: 'Films' },
-  { id: 'tv',            label: 'Series' },
-  { id: 'anime',         label: 'Anime' },
-  { id: 'reality',       label: 'Reality TV' },
-  { id: 'documentary',   label: 'Docs' },
-]
+const loadingPersonal = ref(false)
 
-const trending          = ref([])
-const top10             = ref([])
-const personalized      = ref([])
-const loadingTrending   = ref(false)
-const loadingTop10      = ref(false)
-const loadingPersonal   = ref(false)
-
-// ---- TMDB fetch helpers ----
+// ── TMDB helper ────────────────────────────────────────────────────────
 const tmdb = async (path, params = {}) => {
   const url = new URL(`${TMDB_BASE}${path}`)
   url.searchParams.set('api_key', TMDB_KEY)
@@ -44,72 +34,59 @@ const tmdb = async (path, params = {}) => {
   return res.json()
 }
 
-const fetchTrending = async () => {
-  loadingTrending.value = true
-  try {
-    const data = await tmdb(`/trending/all/${trendingPeriod.value}`)
-    trending.value = data.results?.slice(0, 10) || []
-  } finally {
-    loadingTrending.value = false
-  }
+const grab15 = (data) => (data.results || []).slice(0, 15)
+
+// ── Fetch all rows ─────────────────────────────────────────────────────
+const fetchAllRows = async () => {
+  const [
+    trendingData,
+    filmsData,
+    seriesData,
+    animeData,
+    tvData,
+    docsData,
+  ] = await Promise.all([
+    tmdb('/trending/all/week'),
+    tmdb('/trending/movie/week'),
+    tmdb('/discover/tv',    { sort_by: 'popularity.desc', without_genres: '16', 'vote_count.gte': '50' }),
+    tmdb('/discover/tv',    { sort_by: 'popularity.desc', with_genres: '16', with_original_language: 'ja', 'vote_count.gte': '100' }),
+    tmdb('/discover/tv',    { sort_by: 'popularity.desc', with_genres: '10764' }),
+    tmdb('/discover/movie', { sort_by: 'popularity.desc', with_genres: '99' }),
+  ])
+
+  trending.value = grab15(trendingData)
+  films.value    = grab15(filmsData)
+  series.value   = grab15(seriesData)
+  anime.value    = grab15(animeData)
+  tvShows.value  = grab15(tvData)
+  docs.value     = grab15(docsData)
 }
 
-const ANIME_GENRE_ID = 16  // Animation (proxy for anime via with_original_language=ja)
-
-const fetchTop10 = async () => {
-  loadingTop10.value = true
-  try {
-    let data
-    if (top10Category.value === 'anime') {
-      data = await tmdb('/discover/tv', {
-        sort_by: 'popularity.desc',
-        with_genres: ANIME_GENRE_ID,
-        with_original_language: 'ja',
-        'vote_count.gte': 100,
-      })
-    } else if (top10Category.value === 'reality') {
-      data = await tmdb('/discover/tv', {
-        sort_by: 'popularity.desc',
-        with_genres: 10764,  // Reality genre ID
-      })
-    } else if (top10Category.value === 'documentary') {
-      const mediaType = 'movie'
-      data = await tmdb(`/discover/${mediaType}`, {
-        sort_by: 'popularity.desc',
-        with_genres: 99,  // Documentary
-      })
-    } else {
-      const timeParam = top10Period.value === 'week' ? 'week' : 'day'
-      data = await tmdb(`/trending/${top10Category.value}/${timeParam}`)
-    }
-    top10.value = (data.results || []).slice(0, 10)
-  } finally {
-    loadingTop10.value = false
-  }
-}
-
+// ── Personalized "For You" ─────────────────────────────────────────────
 const fetchPersonalized = async () => {
   loadingPersonal.value = true
   try {
-    const topMoods   = getTopMoods(3)
-    const hour       = new Date().getHours()
-    const moodForNow = getMoodForHour(hour)
+    const topMoods    = getTopMoods(3)
+    const hour        = new Date().getHours()
+    const moodForNow  = getMoodForHour(hour)
     const likedTitles = liked.value.slice(0, 10).map(i => i.title).filter(Boolean)
 
     const res = await fetch('http://localhost:3001/api/discover', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topMoods: moodForNow ? [moodForNow, ...topMoods] : topMoods, currentHour: hour, likedTitles }),
+      body: JSON.stringify({
+        topMoods: moodForNow ? [moodForNow, ...topMoods] : topMoods,
+        currentHour: hour,
+        likedTitles,
+      }),
     })
-
-    if (!res.ok) throw new Error('Server error')
+    if (!res.ok) throw new Error()
     const suggestions = await res.json()
 
-    // Verify each in TMDB
     const results = await Promise.all(
       suggestions.map(async (s) => {
         const type = s.mediaType === 'tv' ? 'tv' : 'movie'
-        const r = await tmdb(`/search/${type}`, { query: s.title, year: s.year })
+        const r = await tmdb(`/search/${type}`, { query: s.title })
         const item = r.results?.[0]
         if (!item) return null
         return {
@@ -131,179 +108,346 @@ const fetchPersonalized = async () => {
   }
 }
 
+// ── Navigation ─────────────────────────────────────────────────────────
 const goDetail = (item) => {
-  const type = item.media_type || item.type || 'movie'
-  const normalType = type === 'movie' ? 'movie' : 'tv'
-  router.push({ name: 'detail', params: { type: normalType, id: item.id } })
+  const rawType  = item.media_type || item.type || 'movie'
+  const normType = rawType === 'movie' ? 'movie' : 'tv'
+  router.push({ name: 'detail', params: { type: normType, id: item.id } })
 }
 
 const posterUrl = (item) =>
   item.poster_path ? `${IMG_BASE}${item.poster_path}` : (item.poster || null)
 
 const itemTitle = (item) => item.title || item.name || ''
-const itemYear  = (item) => ((item.release_date || item.first_air_date || '')).split('-')[0]
+const itemYear  = (item) => (item.release_date || item.first_air_date || '').split('-')[0]
 
 onMounted(() => {
-  fetchTrending()
-  fetchTop10()
+  fetchAllRows()
   fetchPersonalized()
 })
-
-// Refetch when period or category changes
-import { watch } from 'vue'
-watch(trendingPeriod, fetchTrending)
-watch([top10Period, top10Category], fetchTop10)
 </script>
 
 <template>
-  <div class="flex flex-col gap-16 pb-12">
+  <div class="flex flex-col gap-12 pb-16">
 
-    <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-white mb-1">{{ t.discoverTitle }}</h1>
-      <p class="text-white/40 text-sm">Explore what's out there</p>
+    <!-- Page header -->
+    <div class="pt-2">
+      <h1 class="text-3xl font-bold text-white mb-1">{{ t.discoverTitle }}</h1>
+      <p style="color:rgba(255,255,255,0.35)" class="text-sm">Browse what's popular right now</p>
     </div>
 
-    <!-- For You (Personalized) -->
-    <section>
-      <div class="flex items-center justify-between mb-5">
-        <h2 class="text-sm font-semibold text-white uppercase tracking-widest">{{ t.forYou }}</h2>
-        <span class="text-white/30 text-xs">Based on your taste</span>
+    <!-- ── For You (Personalized) ──────────────────────────────────── -->
+    <section v-if="personalized.length || loadingPersonal">
+      <h2 class="section-title">✨ {{ t.forYou }}</h2>
+
+      <div v-if="loadingPersonal" class="row-loader">
+        <div class="spinner"></div><span>Loading...</span>
       </div>
 
-      <div v-if="loadingPersonal" class="flex gap-2 items-center text-white/40 text-sm">
-        <div class="w-4 h-4 border border-purple-500/40 border-t-purple-500 rounded-full animate-spin"></div>
-        Loading...
-      </div>
-
-      <div v-else-if="personalized.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div v-else class="scroll-row">
         <div
           v-for="item in personalized"
-          :key="`${item.type}-${item.id}`"
-          class="group cursor-pointer"
+          :key="`p-${item.id}`"
+          class="scroll-card"
           @click="goDetail(item)"
         >
-          <div class="relative w-full h-44 rounded-xl overflow-hidden bg-white/5 mb-2">
-            <img v-if="item.poster" :src="item.poster" :alt="item.title" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-            <div v-else class="w-full h-full flex items-center justify-center text-white/20"><i class="fa-solid fa-film text-2xl"></i></div>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition"></div>
+          <div class="poster-wrap">
+            <img v-if="item.poster" :src="item.poster" :alt="item.title" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span v-if="item.rating" class="rating-badge">⭐ {{ item.rating }}</span>
           </div>
-          <p class="text-white/80 text-xs font-medium line-clamp-2">{{ item.title }}</p>
-          <p v-if="item.reason" class="text-white/40 text-[10px] mt-0.5 line-clamp-2">{{ item.reason }}</p>
+          <p class="card-title">{{ item.title }}</p>
+          <p v-if="item.reason" class="card-reason">{{ item.reason }}</p>
         </div>
       </div>
-
-      <p v-else class="text-white/30 text-sm">Use The Oracle and like some recommendations to personalize this section.</p>
     </section>
 
-    <!-- Trending -->
+    <!-- ── Trending Now ────────────────────────────────────────────── -->
     <section>
-      <div class="flex flex-wrap items-center gap-4 mb-5">
-        <h2 class="text-sm font-semibold text-white uppercase tracking-widest">{{ t.trending }}</h2>
-        <div class="flex gap-2 ml-auto">
-          <button
-            v-for="period in ['week','day']"
-            :key="period"
-            class="px-3 py-1 rounded-lg text-xs font-medium transition"
-            :class="trendingPeriod === period ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/50 hover:text-white'"
-            @click="trendingPeriod = period"
-          >
-            {{ period === 'week' ? t.thisWeek : 'Today' }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="loadingTrending" class="flex gap-2 items-center text-white/40 text-sm">
-        <div class="w-4 h-4 border border-purple-500/40 border-t-purple-500 rounded-full animate-spin"></div>
-        Loading...
-      </div>
-
-      <div v-else class="flex gap-4 overflow-x-auto pb-3 -mx-1 px-1">
+      <h2 class="section-title">🔥 {{ t.trending }}</h2>
+      <div class="scroll-row">
         <div
           v-for="(item, i) in trending"
-          :key="item.id"
-          class="flex-shrink-0 w-36 cursor-pointer group"
+          :key="`tr-${item.id}`"
+          class="scroll-card"
           @click="goDetail(item)"
         >
-          <div class="relative w-full h-52 rounded-xl overflow-hidden bg-white/5 mb-2">
-            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-            <div v-else class="w-full h-full flex items-center justify-center text-white/20"><i class="fa-solid fa-film text-2xl"></i></div>
-            <!-- rank -->
-            <span class="absolute bottom-2 left-2 text-4xl font-black text-white/20 leading-none select-none">{{ i + 1 }}</span>
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
           </div>
-          <p class="text-white/80 text-xs font-medium line-clamp-2">{{ itemTitle(item) }}</p>
-          <p class="text-white/30 text-[10px]">{{ itemYear(item) }}</p>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
         </div>
       </div>
     </section>
 
-    <!-- Top 10 -->
+    <!-- ── Top Films ───────────────────────────────────────────────── -->
     <section>
-      <div class="flex flex-wrap items-center gap-4 mb-5">
-        <h2 class="text-sm font-semibold text-white uppercase tracking-widest">{{ t.top10 }}</h2>
-
-        <!-- Period toggle (only for movie/tv) -->
-        <div v-if="['movie','tv'].includes(top10Category)" class="flex gap-2">
-          <button
-            v-for="period in ['week','month']"
-            :key="period"
-            class="px-3 py-1 rounded-lg text-xs font-medium transition"
-            :class="top10Period === period ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/50 hover:text-white'"
-            @click="top10Period = period"
-          >
-            {{ period === 'week' ? t.thisWeek : t.thisMonth }}
-          </button>
-        </div>
-
-        <!-- Category tabs -->
-        <div class="flex gap-2 ml-auto flex-wrap">
-          <button
-            v-for="cat in categories"
-            :key="cat.id"
-            class="px-3 py-1 rounded-lg text-xs font-medium transition"
-            :class="top10Category === cat.id ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/50 hover:text-white'"
-            @click="top10Category = cat.id"
-          >
-            {{ cat.label }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="loadingTop10" class="flex gap-2 items-center text-white/40 text-sm">
-        <div class="w-4 h-4 border border-purple-500/40 border-t-purple-500 rounded-full animate-spin"></div>
-        Loading...
-      </div>
-
-      <div v-else class="flex flex-col gap-2">
+      <h2 class="section-title">🎬 Top Films</h2>
+      <div class="scroll-row">
         <div
-          v-for="(item, i) in top10"
-          :key="item.id"
-          class="flex items-center gap-4 p-3 rounded-xl bg-white/3 hover:bg-white/5 cursor-pointer transition group"
+          v-for="(item, i) in films"
+          :key="`f-${item.id}`"
+          class="scroll-card"
           @click="goDetail(item)"
         >
-          <!-- Rank number -->
-          <span class="text-2xl font-black text-white/20 w-8 text-center flex-shrink-0">{{ i + 1 }}</span>
-
-          <!-- Poster -->
-          <div class="w-10 h-14 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
-            <img v-if="posterUrl(item)" :src="posterUrl(item)" class="w-full h-full object-cover" />
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
           </div>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
+        </div>
+      </div>
+    </section>
 
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <p class="text-white/90 text-sm font-medium truncate group-hover:text-white transition">{{ itemTitle(item) }}</p>
-            <p class="text-white/40 text-xs">{{ itemYear(item) }}</p>
+    <!-- ── Top Series ──────────────────────────────────────────────── -->
+    <section>
+      <h2 class="section-title">📺 Top Series</h2>
+      <div class="scroll-row">
+        <div
+          v-for="(item, i) in series"
+          :key="`s-${item.id}`"
+          class="scroll-card"
+          @click="goDetail(item)"
+        >
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
           </div>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
+        </div>
+      </div>
+    </section>
 
-          <!-- Rating -->
-          <span v-if="item.vote_average" class="text-yellow-400 text-xs font-medium flex-shrink-0">
-            ⭐ {{ item.vote_average.toFixed(1) }}
-          </span>
+    <!-- ── Top Anime ───────────────────────────────────────────────── -->
+    <section>
+      <h2 class="section-title">⛩️ Top Anime</h2>
+      <div class="scroll-row">
+        <div
+          v-for="(item, i) in anime"
+          :key="`a-${item.id}`"
+          class="scroll-card"
+          @click="goDetail(item)"
+        >
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
+          </div>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
+        </div>
+      </div>
+    </section>
 
-          <i class="fa-solid fa-chevron-right text-white/20 text-xs flex-shrink-0 group-hover:text-white/50 transition"></i>
+    <!-- ── Top TV Shows ────────────────────────────────────────────── -->
+    <section>
+      <h2 class="section-title">📡 Top TV Shows</h2>
+      <div class="scroll-row">
+        <div
+          v-for="(item, i) in tvShows"
+          :key="`tv-${item.id}`"
+          class="scroll-card"
+          @click="goDetail(item)"
+        >
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
+          </div>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Top Documentaries ───────────────────────────────────────── -->
+    <section>
+      <h2 class="section-title">🎙️ Top Documentaries</h2>
+      <div class="scroll-row">
+        <div
+          v-for="(item, i) in docs"
+          :key="`d-${item.id}`"
+          class="scroll-card"
+          @click="goDetail(item)"
+        >
+          <div class="poster-wrap">
+            <img v-if="posterUrl(item)" :src="posterUrl(item)" :alt="itemTitle(item)" class="poster-img" />
+            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+            <div class="poster-overlay"></div>
+            <span class="rank-num">{{ i + 1 }}</span>
+          </div>
+          <p class="card-title">{{ itemTitle(item) }}</p>
+          <p class="card-year">{{ itemYear(item) }}</p>
         </div>
       </div>
     </section>
 
   </div>
 </template>
+
+<style scoped>
+/* ── Section title ───────────────────────────────────────── */
+.section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+/* ── Horizontal scroll row ───────────────────────────────── */
+.scroll-row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  /* hide scrollbar but keep scrollability */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-row::-webkit-scrollbar { display: none; }
+
+/* ── Individual card ─────────────────────────────────────── */
+.scroll-card {
+  flex-shrink: 0;
+  width: 140px;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .scroll-card { width: 155px; }
+}
+
+/* ── Poster container ────────────────────────────────────── */
+.poster-wrap {
+  position: relative;
+  width: 100%;
+  height: 210px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.05);
+  margin-bottom: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.scroll-card:hover .poster-wrap {
+  transform: scale(1.04);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+}
+
+.poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.15);
+  font-size: 28px;
+}
+
+/* subtle dark gradient at bottom (always present, more visible on hover) */
+.poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%);
+}
+
+/* ── Rank number ─────────────────────────────────────────── */
+.rank-num {
+  position: absolute;
+  bottom: 6px;
+  left: 9px;
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  /* Netflix-style outline number */
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(255,255,255,0.55);
+  text-stroke: 2px rgba(255,255,255,0.55);
+  user-select: none;
+  font-family: 'Impact', 'Arial Black', sans-serif;
+}
+
+/* ── Rating badge ────────────────────────────────────────── */
+.rating-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 8px;
+}
+
+/* ── Card text ───────────────────────────────────────────── */
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.card-year {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+}
+
+.card-reason {
+  font-size: 11px;
+  color: rgba(255,255,255,0.38);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+/* ── Loader ──────────────────────────────────────────────── */
+.row-loader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(124,58,237,0.3);
+  border-top-color: #7C3AED;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
