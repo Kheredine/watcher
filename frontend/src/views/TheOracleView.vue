@@ -6,7 +6,7 @@ import RecommendationSection from '@/components/TheOracleSection/RecommendationS
 import { useOracleState } from '@/composables/useOracleState'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 
-const { selections, isSubmitted, setSelections, reset } = useOracleState()
+const { isSubmitted, setSelections, reset } = useOracleState()
 const { recordSessionMood } = useUserPreferences()
 
 const recommendationsRef = ref(null)
@@ -22,21 +22,25 @@ const handleRecommend = (data) => {
   nextTick(() => {
     setTimeout(() => {
       recommendationsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 150)
+    }, 200)
   })
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-10">
+  <div class="flex flex-col gap-12 py-4">
 
+    <!-- Hero -->
     <HeroSection />
 
-    <div class="w-full h-px bg-white/5 rounded-full"></div>
+    <div class="w-full h-px" style="background: linear-gradient(to right, rgba(124,58,237,0.4), transparent)"></div>
 
+    <!-- Filters -->
     <SelectorSection :isSubmitted="isSubmitted" @recommend="handleRecommend" />
 
+    <!-- Recommendations appear below after submit -->
     <div v-if="isSubmitted" ref="recommendationsRef" class="scroll-section">
+      <div class="w-full h-px mb-10" style="background: linear-gradient(to right, rgba(124,58,237,0.4), transparent)"></div>
       <RecommendationSection />
     </div>
 

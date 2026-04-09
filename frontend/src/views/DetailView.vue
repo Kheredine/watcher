@@ -93,14 +93,16 @@ const libItem    = computed(() => ({ id: Number(id), type, title: title.value, p
 <template>
   <div class="min-h-screen text-white">
 
-    <!-- Back button — fixed top-left, prominent -->
-    <button
-      @click="router.back()"
-      class="fixed top-20 left-4 md:left-72 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0a0615]/80 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:border-purple-500/60 transition font-medium text-sm"
-    >
-      <i class="fa-solid fa-arrow-left"></i>
-      <span class="hidden sm:inline">{{ t.backBtn }}</span>
-    </button>
+    <!-- Back button — sits in normal flow, above the backdrop -->
+    <div class="mb-5">
+      <button
+        @click="router.back()"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:border-purple-500/50 hover:bg-purple-500/10 transition font-medium text-sm"
+      >
+        <i class="fa-solid fa-arrow-left text-xs"></i>
+        {{ t.backBtn }}
+      </button>
+    </div>
 
     <!-- Loading -->
     <div v-if="loading" class="flex justify-center items-center py-32">
@@ -114,7 +116,7 @@ const libItem    = computed(() => ({ id: Number(id), type, title: title.value, p
     <template v-else-if="media">
 
       <!-- Backdrop hero -->
-      <div class="relative w-full h-72 md:h-96 rounded-2xl overflow-hidden mb-8">
+      <div class="relative w-full h-56 md:h-80 rounded-2xl overflow-hidden mb-8">
         <img v-if="backdrop" :src="backdrop" :alt="title" class="w-full h-full object-cover" />
         <div v-else class="w-full h-full bg-purple-900/40"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-[#0a0615] via-[#0a0615]/40 to-transparent"></div>

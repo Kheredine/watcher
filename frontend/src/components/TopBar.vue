@@ -14,46 +14,49 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
 <template>
 <header
-  class="fixed top-0 left-0 md:left-64 right-0 z-40 flex items-center py-4 px-4 md:px-6 gap-3 font-body text-white transition-all duration-300"
-  :class="scrolled ? 'backdrop-blur-2xl bg-[#0a0615]/60' : 'bg-transparent'"
+  class="fixed top-0 left-0 md:left-64 right-0 z-40 flex items-center py-3 px-4 md:px-6 gap-3 font-body text-white transition-all duration-300"
+  :class="scrolled ? 'backdrop-blur-2xl bg-[#0a0615]/80 border-b border-white/5' : 'bg-transparent'"
 >
-  <!-- Mobile hamburger -->
-  <button
-    class="md:hidden flex items-center justify-center w-10 h-10 rounded-xl bg-[#7C3AED]/20 text-white/70 hover:text-white transition flex-shrink-0"
-    @click="$emit('toggle-sidebar')"
-  >
-    <i class="fa-solid fa-bars"></i>
-  </button>
-
-  <!-- Language toggle -->
-  <button
-    class="flex items-center gap-1.5 px-3 h-10 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md text-white/70 hover:text-white text-sm font-medium transition flex-shrink-0"
-    @click="toggleLang"
-    :title="lang === 'en' ? 'Passer en français' : 'Switch to English'"
-  >
-    <i class="fa-solid fa-globe text-xs"></i>
-    <span>{{ lang === 'en' ? 'FR' : 'EN' }}</span>
-  </button>
-
-  <!-- Search bar — fixed max-width on desktop, full on mobile -->
-  <div class="search-bar flex flex-1 md:flex-none md:w-full md:max-w-md items-center gap-3 px-4 h-10 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner">
-    <i class="fa-solid fa-magnifying-glass text-white/50 text-sm"></i>
-    <input
-      type="text"
-      :placeholder="t.searchPlaceholder"
-      class="bg-transparent focus:outline-none w-full text-sm text-white/80 placeholder:text-white/40"
+  <!-- Left: mobile hamburger + language toggle -->
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <button
+      class="md:hidden flex items-center justify-center w-11 h-11 rounded-xl bg-[#7C3AED]/20 text-white/70 hover:text-white transition"
+      @click="$emit('toggle-sidebar')"
     >
-    <i class="fa-solid fa-sliders cursor-pointer text-white/50 hover:text-white transition text-sm"></i>
+      <i class="fa-solid fa-bars text-base"></i>
+    </button>
+
+    <button
+      class="flex items-center gap-1.5 px-3 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md text-white/70 hover:text-white text-sm font-semibold transition"
+      @click="toggleLang"
+      :title="lang === 'en' ? 'Passer en français' : 'Switch to English'"
+    >
+      <i class="fa-solid fa-globe text-xs"></i>
+      <span>{{ lang === 'en' ? 'FR' : 'EN' }}</span>
+    </button>
   </div>
 
-  <!-- User profile pill -->
-  <div class="user flex items-center gap-3 px-4 h-10 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner ml-auto flex-shrink-0">
-    <img src="../assets/images/avatar.jfif" alt="User Avatar" class="w-6 h-6 rounded-lg object-cover">
+  <!-- Center: search bar — grows to fill space, max-width capped, centered -->
+  <div class="flex-1 flex justify-center">
+    <div class="flex items-center gap-3 px-5 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner w-full max-w-2xl">
+      <i class="fa-solid fa-magnifying-glass text-white/40 text-base flex-shrink-0"></i>
+      <input
+        type="text"
+        :placeholder="t.searchPlaceholder"
+        class="bg-transparent focus:outline-none w-full text-base text-white/80 placeholder:text-white/30"
+      >
+      <i class="fa-solid fa-sliders cursor-pointer text-white/40 hover:text-white transition text-sm flex-shrink-0"></i>
+    </div>
+  </div>
+
+  <!-- Right: user profile pill -->
+  <div class="flex items-center gap-3 px-4 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner flex-shrink-0">
+    <img src="../assets/images/avatar.jfif" alt="User Avatar" class="w-7 h-7 rounded-lg object-cover">
     <div class="hidden sm:flex flex-col leading-tight">
-      <span class="text-sm font-medium">Yuri P.</span>
+      <span class="text-sm font-semibold text-white">Yuri P.</span>
       <span class="text-[10px] text-blue-300">Standard</span>
     </div>
-    <i class="fa-solid fa-chevron-right text-xs text-white/50"></i>
+    <i class="fa-solid fa-chevron-right text-xs text-white/40"></i>
   </div>
 </header>
 </template>

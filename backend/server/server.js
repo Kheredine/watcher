@@ -42,7 +42,7 @@ const ERA_LABELS = {
 /*
 |--------------------------------------------------------------------------
 | POST /api/recommend
-| Returns 5 (first page) or 3 (subsequent pages) specific title suggestions
+| Returns 3 specific title suggestions per page
 |--------------------------------------------------------------------------
 */
 app.post("/api/recommend", async (req, res) => {
@@ -60,7 +60,7 @@ app.post("/api/recommend", async (req, res) => {
     const timeLabel    = TIME_LABELS[selectedTime]    || TIME_LABELS['Any time']
     const contentLabel = CONTENT_LABELS[selectedContent] || CONTENT_LABELS['Any content']
     const eraLabel     = ERA_LABELS[selectedEra]      || ERA_LABELS['Any era']
-    const count        = page === 0 ? 5 : 3
+    const count        = 3
     const excludeNote  = excludeTitles.length
       ? `\nDo NOT suggest any of these titles (already recommended): ${excludeTitles.join(', ')}.`
       : ''

@@ -8,104 +8,93 @@
     --tracking-2: 0.2em;
 
     --animate-fadeUp: fadeUp 0.6s 0.1s forwards;
-    --animate-spin: spin 1s linear infinite;
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
 }
 
 @layer components {
+  /* ── Buttons ─────────────────────────────────── */
   .btn-primary {
-    @apply text-white/80 bg-[#7C3AED]/20 backdrop-blur-md shadow-inner
-        hover:bg-purple-700 hover:text-white cursor-pointer
-        transition px-5 py-2.5 rounded-xl font-medium;
+    @apply text-white bg-purple-600 hover:bg-purple-700
+        cursor-pointer transition px-5 py-3 rounded-xl font-semibold text-sm;
   }
 
   .btn-secondary-1 {
-    @apply text-white/70 border border-white/20
-            hover:border-white/40 hover:text-white
+    @apply text-white/80 border border-white/25
+            hover:border-white/50 hover:text-white
             bg-transparent backdrop-blur-md
-            px-5 py-2.5 rounded-xl font-medium
+            px-5 py-3 rounded-xl font-medium text-sm
             transition cursor-pointer;
   }
 
   .btn-secondary-2 {
-    @apply text-white/70 bg-white/5
-            hover:bg-white/10 hover:text-white
+    @apply text-white/80 bg-white/8
+            hover:bg-white/12 hover:text-white
             backdrop-blur-md
-            px-5 py-2.5 rounded-xl font-medium
+            px-5 py-3 rounded-xl font-medium text-sm
             transition cursor-pointer;
   }
 
   .btn-ghost {
     @apply text-white/70 hover:text-white
-            bg-transparent
-            px-5 py-2.5 rounded-xl font-medium
+            bg-transparent px-5 py-3 rounded-xl font-medium text-sm
             transition cursor-pointer;
   }
 
-  .btn-pill {
-    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-full border border-purple-500/40 bg-transparent backdrop-blur-md transition duration-300;
-  }
-
+  /* Mood selection pills */
   .btn-time-pill {
-    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light py-2 px-5 rounded-xl bg-transparent backdrop-blur-md border border-purple-500/40 cursor-pointer transition duration-300;
+    @apply text-white/75 text-sm font-medium py-2.5 px-5 rounded-xl
+           bg-white/5 border border-white/12 cursor-pointer
+           hover:bg-purple-500/20 hover:border-purple-500/50 hover:text-white
+           transition duration-200;
   }
 
   .pill_active {
-    @apply bg-purple-600 text-white border-purple-600 !important;
+    background: rgba(124, 58, 237, 0.35) !important;
+    border-color: rgba(124, 58, 237, 0.7) !important;
+    color: white !important;
   }
 
   .badge {
-    @apply bg-[#7C3AED]/60 text-white px-2 py-1 rounded-full text-xs font-bold;
+    @apply bg-purple-600/70 text-white px-2 py-1 rounded-full text-xs font-semibold;
   }
 
-  /* Nav */
-  .nav-link {
-    @apply flex items-center gap-3 text-[#949da3] hover:text-white transition cursor-pointer rounded-xl px-3 py-2 hover:bg-white/5;
-  }
-
-  .nav-active {
-    @apply text-white bg-purple-600/20 border border-purple-500/20;
-  }
-
-  /* Scroll sections get top offset so they don't hide under fixed header */
+  /* Scroll offset so sections don't hide under fixed header */
   .scroll-section {
-    scroll-margin-top: 100px;
+    scroll-margin-top: 88px;
   }
 }
 
 /* Page transitions */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
+.page-enter-from { opacity: 0; transform: translateY(6px); }
+.page-leave-to   { opacity: 0; transform: translateY(-6px); }
+
+/* Global base */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; }
 
 body {
-    background: #0a0615;
-    background-image:
-      radial-gradient(1200px at 20% 10%, rgba(124,58,237,0.15), transparent),
-      radial-gradient(1000px at 80% 90%, rgba(88,28,255,0.12), transparent);
-    background-attachment: fixed;
-    color: #fbffff;
-    font-family: 'Inter', sans-serif;
+  background: #0a0615;
+  background-image:
+    radial-gradient(1200px at 20% 10%, rgba(124,58,237,0.13), transparent),
+    radial-gradient(1000px at 80% 90%, rgba(88,28,255,0.10), transparent);
+  background-attachment: fixed;
+  color: #f0eeff;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.35); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.6); }

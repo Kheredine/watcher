@@ -134,7 +134,7 @@ onMounted(() => {
     <template v-else-if="recommendations.length">
       <h2 class="text-xs uppercase tracking-widest text-white/40 font-medium">{{ t.recommendationsTitle }}</h2>
 
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
           v-for="rec in recommendations"
           :key="`${rec.type}-${rec.id}`"
@@ -142,7 +142,7 @@ onMounted(() => {
           @click="goDetail(rec)"
         >
           <!-- Poster -->
-          <div class="relative w-full h-52 flex-shrink-0 overflow-hidden bg-[#12121A]">
+          <div class="relative w-full h-64 flex-shrink-0 overflow-hidden bg-[#12121A]">
             <img
               v-if="rec.poster"
               :src="rec.poster"

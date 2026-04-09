@@ -90,7 +90,7 @@ const handleReset = () => {
           :items="subMoods"
           v-model="selectedSubMood"
         />
-        <p v-if="selectedSubMood" class="mt-4 text-sm text-[#949da3] leading-relaxed max-w-xl border-l-2 border-purple-500/40 pl-4">
+        <p v-if="selectedSubMood" class="mt-5 text-base leading-relaxed max-w-2xl pl-4 border-l-2 border-purple-500/50" style="color: rgba(255,255,255,0.55)">
           {{ selectedSubMood.description }}
         </p>
       </div>
