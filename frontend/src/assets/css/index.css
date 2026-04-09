@@ -8,91 +8,104 @@
     --tracking-2: 0.2em;
 
     --animate-fadeUp: fadeUp 0.6s 0.1s forwards;
+    --animate-spin: spin 1s linear infinite;
 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
 }
 
 @layer components {
   .btn-primary {
-    @apply text-white/80 bg-[#7C3AED]/20 backdrop-blur-md shadow-inner 
-        hover:bg-purple-700 hover:text-white cursor-pointer 
-        transition px-5 max-w-2xs py-2 rounded-lg font-medium;
+    @apply text-white/80 bg-[#7C3AED]/20 backdrop-blur-md shadow-inner
+        hover:bg-purple-700 hover:text-white cursor-pointer
+        transition px-5 py-2.5 rounded-xl font-medium;
   }
 
   .btn-secondary-1 {
-    @apply text-white/70 border border-white/20 
-            hover:border-white/40 hover:text-white 
-            bg-transparent backdrop-blur-md 
-            px-5 py-2 rounded-lg font-medium 
+    @apply text-white/70 border border-white/20
+            hover:border-white/40 hover:text-white
+            bg-transparent backdrop-blur-md
+            px-5 py-2.5 rounded-xl font-medium
             transition cursor-pointer;
   }
 
   .btn-secondary-2 {
-    @apply text-white/70 bg-white/5 
-            hover:bg-white/10 hover:text-white 
-            backdrop-blur-md 
-            px-5 py-2 rounded-lg font-medium 
+    @apply text-white/70 bg-white/5
+            hover:bg-white/10 hover:text-white
+            backdrop-blur-md
+            px-5 py-2.5 rounded-xl font-medium
             transition cursor-pointer;
   }
 
   .btn-ghost {
-    @apply text-white/70 hover:text-white 
-            bg-transparent backdrop-blur-md 
-            px-5 py-2 rounded-lg font-medium 
+    @apply text-white/70 hover:text-white
+            bg-transparent
+            px-5 py-2.5 rounded-xl font-medium
             transition cursor-pointer;
   }
 
   .btn-pill {
-    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-full border border-purple-500/40 bg-transparent backdrop-blur-md
-  }
-
-  .btn-sub-pill {
-    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-lg border border-purple-500/40 bg-transparent backdrop-blur-md transition duration-300
+    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-full border border-purple-500/40 bg-transparent backdrop-blur-md transition duration-300;
   }
 
   .btn-time-pill {
-    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light py-2 px-8 rounded-lg bg-transparent backdrop-blur-md border border-purple-500/40 cursor-pointer;
+    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light py-2 px-5 rounded-xl bg-transparent backdrop-blur-md border border-purple-500/40 cursor-pointer transition duration-300;
   }
 
   .pill_active {
-    @apply bg-purple-500 text-white border-purple-500;
+    @apply bg-purple-600 text-white border-purple-600 !important;
   }
 
   .badge {
     @apply bg-[#7C3AED]/60 text-white px-2 py-1 rounded-full text-xs font-bold;
   }
 
-  .carousel-card{
-    @apply absolute flex flex-col p-6 rounded-2xl bg-cover bg-center w-182.5 transition-all duration-700 ease-in-out;
+  /* Nav */
+  .nav-link {
+    @apply flex items-center gap-3 text-[#949da3] hover:text-white transition cursor-pointer rounded-xl px-3 py-2 hover:bg-white/5;
   }
 
-  .pos-exit {
-    @apply h-125 top-0 -left-140 opacity-0 z-40;
+  .nav-active {
+    @apply text-white bg-purple-600/20 border border-purple-500/20;
   }
 
-  .pos-enter {
-    @apply h-105 top-13 left-140 opacity-0 z-0;
+  /* Scroll sections get top offset so they don't hide under fixed header */
+  .scroll-section {
+    scroll-margin-top: 100px;
   }
 }
 
+/* Page transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 
 body {
-    /* background: url('/bg.webp');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat; */
-
-    /* background-color: #0a0615;
-    background-image: 
-        radial-gradient(circle at 30% 20%, rgba(140,69,255,0.25), transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(88,28,255,0.2), transparent 60%); */
-
     background: #0a0615;
-    background-image: 
+    background-image:
       radial-gradient(1200px at 20% 10%, rgba(124,58,237,0.15), transparent),
       radial-gradient(1000px at 80% 90%, rgba(88,28,255,0.12), transparent);
     background-attachment: fixed;
+    color: #fbffff;
+    font-family: 'Inter', sans-serif;
 }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.6); }

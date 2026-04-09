@@ -1,682 +1,119 @@
 {
-  "version": "3.0.0",
+  "version": "4.0.0",
   "filterOptions": {
     "timeAvailabilities": [
-      "<30 mins",
-      "~1 hour",
-      "~2 hours",
-      ">3 hours"
+      "Any time",
+      "< 30 mins",
+      "~ 1 hour",
+      "~ 2 hours",
+      "> 3 hours"
     ],
     "contentTypes": [
+      "Any content",
       "Movies",
       "Series",
-      "Animes",
+      "Anime",
       "TV Shows",
       "Documentaries"
+    ],
+    "eras": [
+      "Any era",
+      "Classic (pre-1980)",
+      "80s",
+      "90s",
+      "2000s",
+      "2010s",
+      "Recent (2020+)"
     ]
   },
   "moods": [
     {
-      "id": "emotional-release",
-      "emoji": "\ud83d\ude14",
-      "mood": "Emotional Release",
-      "description": "You want to feel something deep. Sad stories, real tears, genuine human emotion \u2014 the kind of watching that leaves you drained but lighter.",
+      "id": "laugh",
+      "emoji": "😄",
+      "mood": "Laugh",
+      "description": "You just want to laugh and have a good time. No heavy stuff.",
       "submoods": [
-        {
-          "id": "cry-productively",
-          "submood": "I want to cry - and feel better after",
-          "description": "A moving story that earns every tear. Not cheap or manipulative \u2014 just deeply human. You'll feel emotionally wrung out in the best way possible.",
-          "tags": [
-            "drama",
-            "grief",
-            "family",
-            "loss",
-            "emotional"
-          ]
-        },
-        {
-          "id": "beautifully-sad",
-          "submood": "Sad but beautiful - not depressing",
-          "description": "Melancholic stories that feel more like a bittersweet song than a gut punch. You leave feeling moved, not destroyed. Think quiet longing, not hopeless darkness.",
-          "tags": [
-            "melancholic",
-            "quiet",
-            "bittersweet",
-            "slow-cinema"
-          ]
-        },
-        {
-          "id": "quiet-grief",
-          "submood": "Grief handled with restraint - no drama",
-          "description": "Loss shown as it actually feels \u2014 quiet, heavy, and slow. No big crying scenes, no dramatic music. Just honest, understated stories about people carrying something hard.",
-          "tags": [
-            "grief",
-            "restraint",
-            "realism",
-            "drama"
-          ]
-        }
+        { "id": "laugh-easy", "submood": "Easy laughs", "description": "Warm, broad comedy you can enjoy without paying close attention. Light, funny, leaves you smiling." },
+        { "id": "laugh-dark", "submood": "Dark comedy", "description": "Smart humor with an edge. Jokes that make you feel a little guilty for laughing. Clever and subversive." },
+        { "id": "laugh-chaos", "submood": "Chaotic energy", "description": "Fast, loud, completely unpredictable. High energy from scene one, never slows down." }
       ]
     },
     {
-      "id": "tense-unsettling",
-      "emoji": "\ud83d\ude28",
-      "mood": "Tense & Unsettling",
-      "description": "Something feels deeply wrong, but you can't quite explain why. Psychological discomfort, slow dread, and an atmosphere that sticks with you long after it ends.",
+      "id": "feel",
+      "emoji": "🥺",
+      "mood": "Feel",
+      "description": "You want something that moves you. Real emotion, real tears, real human stories.",
       "submoods": [
-        {
-          "id": "unsettled-not-scared",
-          "submood": "Unsettled but not scared - something feels off",
-          "description": "No jump scares, no gore. Just a growing sense that something is wrong you can't put your finger on. The film gets under your skin quietly and stays there for days.",
-          "tags": [
-            "psychological",
-            "atmospheric",
-            "slow-burn",
-            "surreal"
-          ]
-        },
-        {
-          "id": "paranoid-slow-burn",
-          "submood": "Paranoid thriller - tension that builds slowly",
-          "description": "You won't notice how tense you are until you realize you've been holding your breath. Conspiracies, characters you can't fully trust, and a sense that something is about to snap.",
-          "tags": [
-            "paranoia",
-            "thriller",
-            "slow-burn",
-            "suspense"
-          ]
-        },
-        {
-          "id": "dread-builds-quietly",
-          "submood": "Pure dread - doom that compounds scene by scene",
-          "description": "No explosions, no monsters chasing anyone. Just an unbearable sense of wrongness that gets heavier with every scene. You know it's going to end badly. You can't stop watching.",
-          "tags": [
-            "dread",
-            "horror",
-            "atmospheric",
-            "psychological"
-          ]
-        }
+        { "id": "feel-cry", "submood": "I want to cry", "description": "A deeply moving story that earns every tear. Human, honest, leaves you feeling lighter after." },
+        { "id": "feel-beautiful", "submood": "Beautifully sad", "description": "Melancholic but not crushing. Bittersweet, like a song that stays with you for days." },
+        { "id": "feel-inspired", "submood": "Leave me inspired", "description": "People who pushed through impossible odds. You finish ready to do something with your life." }
       ]
     },
     {
-      "id": "high-adrenaline",
-      "emoji": "\u26a1",
-      "mood": "High Adrenaline",
-      "description": "Your heart rate goes up and stays up. Action, danger, horror, and high-stakes situations that keep you locked in from start to finish. Not subtle \u2014 intense.",
+      "id": "thrill",
+      "emoji": "⚡",
+      "mood": "Thrill",
+      "description": "Heart rate up. Action, suspense, horror — high stakes from start to finish.",
       "submoods": [
-        {
-          "id": "pure-action-mayhem",
-          "submood": "Non-stop action - fights, chases, explosions",
-          "description": "Full throttle from minute one. You're here for movement, impact, and spectacle. Choreographed fights, insane chases, things blowing up. Your brain rests, your pulse doesn't.",
-          "tags": [
-            "action",
-            "fast-paced",
-            "fights",
-            "spectacle",
-            "blockbuster"
-          ]
-        },
-        {
-          "id": "survival-against-odds",
-          "submood": "Survival story - one person against impossible odds",
-          "description": "A character in a situation with no good options. Claustrophobic, relentless, desperate. You're not sure they make it out \u2014 and you genuinely care whether they do.",
-          "tags": [
-            "survival",
-            "thriller",
-            "tension",
-            "one-vs-all",
-            "intense"
-          ]
-        },
-        {
-          "id": "jump-scares-horror",
-          "submood": "Classic horror - monsters, jump scares, things in the dark",
-          "description": "You want to scream out loud. Haunted houses, creatures, things that go wrong fast. This is not subtle psychological dread \u2014 this is designed to make you flinch, gasp, and check your closet after.",
-          "tags": [
-            "horror",
-            "jump-scares",
-            "monsters",
-            "scary",
-            "haunted"
-          ]
-        },
-        {
-          "id": "heist-and-schemes",
-          "submood": "Heist or scheme - a brilliant plan executed under pressure",
-          "description": "The thrill is mental. A group with a plan so intricate you can barely follow it \u2014 and then the payoff when it comes together (or spectacularly falls apart). Fast-talking, tightly plotted, very rewatchable.",
-          "tags": [
-            "heist",
-            "thriller",
-            "clever",
-            "crime",
-            "strategy"
-          ]
-        },
-        {
-          "id": "combat-and-war",
-          "submood": "War and combat - brutal, real, no glory",
-          "description": "War shown without a hero soundtrack. The violence is physical and the decisions are impossible. You feel the weight of every scene. Hits completely differently from regular action movies.",
-          "tags": [
-            "war",
-            "combat",
-            "brutal",
-            "military",
-            "historical"
-          ]
-        }
+        { "id": "thrill-action", "submood": "Pure action", "description": "Non-stop fights, chases, explosions. Your brain rests, your pulse doesn't." },
+        { "id": "thrill-suspense", "submood": "Suspense & tension", "description": "You won't notice how tense you are until you realize you've been holding your breath." },
+        { "id": "thrill-horror", "submood": "Horror", "description": "Monsters, dread, things in the dark. Designed to make you flinch, gasp, and check your closet after." },
+        { "id": "thrill-heist", "submood": "Heist or scheme", "description": "A brilliant plan executed under pressure. Tightly plotted, very rewatchable." }
       ]
     },
     {
-      "id": "light-fun",
-      "emoji": "\ud83d\ude02",
-      "mood": "Light & Fun",
-      "description": "No heavy themes, no big emotional investment required. Just enjoyable, entertaining content that puts you in a good mood or makes you laugh out loud.",
+      "id": "think",
+      "emoji": "🧠",
+      "mood": "Think",
+      "description": "You want to use your brain. Complex plots, big ideas, films you discuss for hours after.",
       "submoods": [
-        {
-          "id": "laugh-without-thinking",
-          "submood": "Pure comedy - just laugh, no effort needed",
-          "description": "Warm, broad, easy humor. You don't need to pay close attention. It works whether you're fully in or half-distracted. Light, funny, and leaves you in a better mood than when you started.",
-          "tags": [
-            "comedy",
-            "feel-good",
-            "light",
-            "easy-watch"
-          ]
-        },
-        {
-          "id": "dark-comedy-dry-wit",
-          "submood": "Dark comedy - jokes that make you feel a little guilty for laughing",
-          "description": "Smart, subversive humor with a sharp edge. The jokes land harder because they're about something real. You'll laugh, then think about why you laughed. Clever writing, uncomfortable truths.",
-          "tags": [
-            "dark-comedy",
-            "satire",
-            "clever",
-            "dry-humor"
-          ]
-        },
-        {
-          "id": "chaotic-energetic",
-          "submood": "Chaotic and high energy - unpredictable from start to finish",
-          "description": "Fast, loud, and all over the place in the best way. You have no idea what happens next and that is the entire point. High energy from the first scene, never slows down.",
-          "tags": [
-            "action",
-            "comedy",
-            "fast-paced",
-            "energetic"
-          ]
-        }
+        { "id": "think-mindbend", "submood": "Mind-bending", "description": "Non-linear timelines, unreliable narrators, ideas that only fully land after the credits." },
+        { "id": "think-philosophical", "submood": "Philosophical", "description": "Big questions, no easy answers. The real thinking happens after you close the screen." },
+        { "id": "think-investigative", "submood": "Investigation & truth", "description": "True crime, journalists uncovering something huge, conspiracies and cover-ups." }
       ]
     },
     {
-      "id": "mind-ideas",
-      "emoji": "\ud83e\udd2f",
-      "mood": "Mind & Ideas",
-      "description": "You want to think. Films that challenge how you see the world, play with structure and logic, or explore ideas big enough to discuss for hours afterward.",
+      "id": "relax",
+      "emoji": "😌",
+      "mood": "Relax",
+      "description": "Low energy, no emotional demands. Gentle, comfortable, easy to watch.",
       "submoods": [
-        {
-          "id": "mind-bending",
-          "submood": "Mind-bending - complex structure, multiple layers, needs a second watch",
-          "description": "Films built to be puzzled over. Non-linear timelines, unreliable narrators, ideas that only fully land after the credits. You will want to talk about it immediately after \u2014 or watch it again.",
-          "tags": [
-            "mind-bending",
-            "complex",
-            "sci-fi",
-            "philosophical"
-          ]
-        },
-        {
-          "id": "surreal-dreamlike",
-          "submood": "Surreal and dreamlike - images and feelings over plot",
-          "description": "Logic is not the point here. You experience these films more than you understand them. Symbols, textures, and atmosphere matter more than story. Strange, hypnotic, and unlike anything else.",
-          "tags": [
-            "surreal",
-            "art-house",
-            "dreamlike",
-            "experimental"
-          ]
-        },
-        {
-          "id": "philosophical-slow-burn",
-          "submood": "Philosophical - big questions, no easy answers",
-          "description": "Films built around questions rather than answers. They take their time. They trust you to sit with uncertainty. The real thinking happens after you close the laptop.",
-          "tags": [
-            "philosophical",
-            "drama",
-            "slow-cinema",
-            "arthouse"
-          ]
-        }
+        { "id": "relax-cozy", "submood": "Cozy & warm", "description": "Small stories about good people. Uplifting without being cheesy. Everything will be okay." },
+        { "id": "relax-background", "submood": "Background watching", "description": "You're not giving this full attention and that's fine. Familiar, warm, low-stakes." },
+        { "id": "relax-nature", "submood": "Nature & the world", "description": "Stunning visuals of our planet. Calming and awe-inspiring simultaneously." }
       ]
     },
     {
-      "id": "cozy-low-effort",
-      "emoji": "\ud83d\ude0c",
-      "mood": "Cozy & Low Effort",
-      "description": "You are tired, low energy, or just want something gentle in the background. No emotional demands, no plot you have to track. Just warm, easy, and comfortable.",
+      "id": "romance",
+      "emoji": "💘",
+      "mood": "Romance",
+      "description": "Love, longing, connection. Stories about the complicated mess of loving other people.",
       "submoods": [
-        {
-          "id": "background-comfort",
-          "submood": "Background watching - on while you do other things",
-          "description": "You are not giving this your full attention and that is completely fine. Familiar, warm, low-stakes. Something that makes the room feel lived-in without asking anything from you.",
-          "tags": [
-            "comfort",
-            "easy-watch",
-            "light",
-            "background"
-          ]
-        },
-        {
-          "id": "fall-asleep-to",
-          "submood": "Fall asleep watching - slow, calm, no sudden moments",
-          "description": "Gentle pacing, no loud moments, no cliffhangers. You will not feel like you missed anything important if you drift off. Soothing to watch and even better to fall asleep to.",
-          "tags": [
-            "calm",
-            "slow",
-            "soothing",
-            "light"
-          ]
-        },
-        {
-          "id": "warm-no-stakes",
-          "submood": "Warm and feel-good - everything is going to be okay",
-          "description": "Small stories about good people doing their best. Uplifting without being cheesy. You finish it feeling like the world is a slightly nicer place than you thought.",
-          "tags": [
-            "feel-good",
-            "warm",
-            "uplifting",
-            "light-drama"
-          ]
-        }
+        { "id": "romance-deep", "submood": "Real romance", "description": "Actual chemistry and tension. Not predictable — makes you feel something and talk about it after." },
+        { "id": "romance-friends", "submood": "Watch with friends", "description": "Crowd-pleasing, fun, holds attention even when people are chatting." },
+        { "id": "romance-family", "submood": "Family night", "description": "Works on two levels — kids are entertained, adults find something genuine too." }
       ]
     },
     {
-      "id": "expansive-adventurous",
-      "emoji": "\ud83c\udf0d",
-      "mood": "Expansive & Adventurous",
-      "description": "You want to go somewhere. Epic stories, faraway places, unfamiliar cultures, or grand journeys that make your own world feel bigger just by watching.",
+      "id": "realworld",
+      "emoji": "🌍",
+      "mood": "Real World",
+      "description": "Stories grounded in reality. The world as it actually is — beautiful, unjust, complex.",
       "submoods": [
-        {
-          "id": "take-me-somewhere",
-          "submood": "Take me somewhere new - a world or culture I know nothing about",
-          "description": "A window into a place, culture, or community that feels completely foreign to you. The best armchair travel \u2014 immersive enough that you feel like you have actually been there by the end.",
-          "tags": [
-            "world-cinema",
-            "travel",
-            "culture",
-            "immersive"
-          ]
-        },
-        {
-          "id": "epic-sweeping",
-          "submood": "Epic scale - wars, dynasties, grand journeys",
-          "description": "Stories so large that the world itself feels like a character. Decades of history, enormous casts, battles and empires. You feel the full weight and sweep of time passing.",
-          "tags": [
-            "epic",
-            "historical",
-            "adventure",
-            "large-scale"
-          ]
-        },
-        {
-          "id": "surprise-me",
-          "submood": "Surprise me - something I would never pick myself",
-          "description": "You are tired of your own patterns. You want a recommendation that breaks your habits \u2014 something you would scroll past but will absolutely love once you start it. Trust the match.",
-          "tags": [
-            "discovery",
-            "wildcard",
-            "varied",
-            "unexpected"
-          ]
-        }
+        { "id": "realworld-culture", "submood": "Other cultures & places", "description": "A window into a world completely foreign to you. The best armchair travel." },
+        { "id": "realworld-social", "submood": "Social & political", "description": "Injustice, power, systems that affect real people. Uncomfortable and necessary." },
+        { "id": "realworld-biography", "submood": "Real people & biopics", "description": "Artists, pioneers, people who changed things. The true story is always stranger." }
       ]
     },
     {
-      "id": "inspired-motivated",
-      "emoji": "\ud83d\udca1",
-      "mood": "Inspired & Motivated",
-      "description": "You want to feel fired up. Stories about people who pushed through, built something extraordinary, or changed the world. You will close the laptop ready to do something.",
+      "id": "atmosphere",
+      "emoji": "🌙",
+      "mood": "Atmosphere",
+      "description": "It is late. You want something moody, cinematic, or dreamlike. Style over plot.",
       "submoods": [
-        {
-          "id": "fired-up",
-          "submood": "Leave me feeling fired up and ready to act",
-          "description": "Characters who hustle, grind, and refuse to quit. You finish the film with energy and momentum. Sports stories, startup battles, artists who made it against the odds \u2014 all qualify.",
-          "tags": [
-            "inspirational",
-            "true-story",
-            "sports",
-            "biopic"
-          ]
-        },
-        {
-          "id": "character-i-want-to-become",
-          "submood": "A character I want to be - someone who changes how I see myself",
-          "description": "You walk away with a new role model. Not a superhero \u2014 a real person (or believable fictional one) whose way of thinking, choosing, and living makes you want to be better or braver.",
-          "tags": [
-            "character-study",
-            "inspiring",
-            "drama",
-            "coming-of-age"
-          ]
-        },
-        {
-          "id": "creative-extraordinary",
-          "submood": "Obsessive craft - people who gave everything to one thing",
-          "description": "Artists, chefs, musicians, architects \u2014 people so consumed by their work it borders on madness. Watching them is exhausting and exhilarating. You will want to create something immediately after.",
-          "tags": [
-            "creativity",
-            "craft",
-            "art",
-            "biography",
-            "passion"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "social-relational",
-      "emoji": "\ud83d\udc95",
-      "mood": "Social & Relational",
-      "description": "You are watching with someone \u2014 or want something about human connection. Romance, friendship, family, and the complicated mess of loving other people.",
-      "submoods": [
-        {
-          "id": "date-night",
-          "submood": "Date night - romantic with actual depth, not a basic love story",
-          "description": "Real chemistry, real tension, real longing. Not a predictable romance where you know the ending in the first ten minutes. Something that makes both of you feel something and talk about it after.",
-          "tags": [
-            "romance",
-            "date-night",
-            "tension",
-            "drama"
-          ]
-        },
-        {
-          "id": "friends-something-for-everyone",
-          "submood": "Watching with friends - holds attention even if people are chatting",
-          "description": "Crowd-pleasing without being dumbed down. Engaging enough that people stop chatting when something big happens, relaxed enough that it works even if not everyone is fully watching.",
-          "tags": [
-            "group-watch",
-            "crowd-pleaser",
-            "fun",
-            "accessible"
-          ]
-        },
-        {
-          "id": "family-not-boring",
-          "submood": "Family watch - kids are entertained, adults are not bored",
-          "description": "Works on two levels at once. Kids are fully engaged, adults find something genuinely interesting too. Layered storytelling that does not talk down to anyone at the table.",
-          "tags": [
-            "family",
-            "animation",
-            "all-ages",
-            "layered"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "nostalgia",
-      "emoji": "\ud83d\udd6f\ufe0f",
-      "mood": "Nostalgia",
-      "description": "You want to feel like a different time. Childhood memories, a specific decade, or the ache of looking back at something you can't return to. Warm, familiar, and bittersweet.",
-      "submoods": [
-        {
-          "id": "childhood-revisited",
-          "submood": "Feel like a kid again - childhood stories and wonder",
-          "description": "Stories seen through the eyes of a child \u2014 full of curiosity, magic, and small things that feel enormous. Whether you are 20 or 50, these take you back to a simpler version of yourself.",
-          "tags": [
-            "childhood",
-            "coming-of-age",
-            "wonder",
-            "family",
-            "memory"
-          ]
-        },
-        {
-          "id": "specific-era",
-          "submood": "A specific era - 80s, 90s, or 2000s aesthetic and feel",
-          "description": "You want the look, sound, and energy of a specific decade. Fashion, music, technology, references \u2014 all intact. It is not just about the story, it is about being transported to that moment in time.",
-          "tags": [
-            "retro",
-            "80s",
-            "90s",
-            "2000s",
-            "period",
-            "aesthetic"
-          ]
-        },
-        {
-          "id": "bittersweet-memory",
-          "submood": "Bittersweet memory - looking back at something that can't be relived",
-          "description": "The specific ache of time passing. Stories about people who had something beautiful that is now gone \u2014 a friendship, a place, a version of themselves. Warm and melancholic at the same time.",
-          "tags": [
-            "memory",
-            "past",
-            "bittersweet",
-            "loss",
-            "time"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "rabbit-hole",
-      "emoji": "\ud83d\udd0d",
-      "mood": "Down a Rabbit Hole",
-      "description": "You want to get obsessed with something real. True crime, hidden conspiracies, investigative journalism \u2014 one episode in and you realize it is now 3am and you cannot stop.",
-      "submoods": [
-        {
-          "id": "true-crime",
-          "submood": "True crime - real cases, real people, no easy answers",
-          "description": "A real crime told in full detail. Who did it, why, and how. You will form opinions, change your mind, and feel unsettled by how close the truth is to ordinary life.",
-          "tags": [
-            "true-crime",
-            "murder",
-            "investigation",
-            "real-events",
-            "crime"
-          ]
-        },
-        {
-          "id": "conspiracy-coverup",
-          "submood": "Conspiracy and cover-ups - something powerful is hiding the truth",
-          "description": "Systems, institutions, and powerful people who did not want this story told. The more you watch, the bigger the picture gets. Infuriating, riveting, and hard to shake.",
-          "tags": [
-            "conspiracy",
-            "cover-up",
-            "corruption",
-            "power",
-            "investigation"
-          ]
-        },
-        {
-          "id": "investigative-journalism",
-          "submood": "Investigative journalism - reporters uncovering something huge",
-          "description": "Journalists following a story that keeps getting bigger and more dangerous. The tension is in the research, the sources, the risk. One of the most compelling narrative structures that exists.",
-          "tags": [
-            "journalism",
-            "investigation",
-            "truth",
-            "media",
-            "expose"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "coming-of-age",
-      "emoji": "\ud83c\udf31",
-      "mood": "Coming of Age",
-      "description": "The universal ache of becoming who you are. First loves, big mistakes, belonging, and the painful gap between who you were and who you are becoming. Hits at any age.",
-      "submoods": [
-        {
-          "id": "first-love-innocence",
-          "submood": "First love and innocence - before everything got complicated",
-          "description": "That specific intensity of feelings when everything is new and nothing is held back. Young love, first heartbreak, the version of yourself before you learned to protect yourself.",
-          "tags": [
-            "first-love",
-            "romance",
-            "youth",
-            "innocence",
-            "tender"
-          ]
-        },
-        {
-          "id": "finding-belonging",
-          "submood": "Finding where you belong - outsiders looking for their people",
-          "description": "Characters who don't fit anywhere trying to find a place they do. The relief when they find it, the cost when they don't. Universal across every age, background, and culture.",
-          "tags": [
-            "belonging",
-            "identity",
-            "outsider",
-            "friendship",
-            "self-discovery"
-          ]
-        },
-        {
-          "id": "rebellion-self-discovery",
-          "submood": "Rebellion and self-discovery - breaking free from what was expected",
-          "description": "A person realizing the life mapped out for them is not the life they want. The push against family, society, or their own fear. Messy, honest, and deeply relatable.",
-          "tags": [
-            "rebellion",
-            "freedom",
-            "identity",
-            "growth",
-            "independence"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "wonder-awe",
-      "emoji": "\ud83c\udf0c",
-      "mood": "Wonder & Awe",
-      "description": "You want to feel small in the best possible way. The cosmos, the deep ocean, ancient civilizations, or the sheer improbability of life itself. Humbling, beautiful, and quietly overwhelming.",
-      "submoods": [
-        {
-          "id": "cosmic-space",
-          "submood": "Space and the cosmos - the universe is incomprehensibly large",
-          "description": "Stories set against the scale of space or time. You finish feeling tiny, temporary, and somehow okay with that. Sci-fi that is about wonder and possibility rather than conflict.",
-          "tags": [
-            "space",
-            "sci-fi",
-            "cosmos",
-            "existential",
-            "awe"
-          ]
-        },
-        {
-          "id": "nature-earth",
-          "submood": "Nature and earth - life on this planet is extraordinary",
-          "description": "The natural world in all its detail and scale. Creatures, ecosystems, and landscapes that make you realize how little of this planet you have actually seen. Calming and awe-inspiring simultaneously.",
-          "tags": [
-            "nature",
-            "animals",
-            "earth",
-            "environment",
-            "beauty"
-          ]
-        },
-        {
-          "id": "ancient-worlds",
-          "submood": "Ancient worlds and civilizations - humans have been here a very long time",
-          "description": "Empires that rose and fell thousands of years ago. Cultures, myths, and discoveries that reframe what it means to be human. History as something enormous and humbling, not a list of dates.",
-          "tags": [
-            "history",
-            "ancient",
-            "civilization",
-            "archaeology",
-            "humanity"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "late-night-noir",
-      "emoji": "\ud83c\udf19",
-      "mood": "Late Night & Noir",
-      "description": "It is late, you are alone, and you want something that matches that feeling. Moody, atmospheric, morally grey. Jazz, shadows, cities at night, and characters making bad decisions for understandable reasons.",
-      "submoods": [
-        {
-          "id": "classic-noir",
-          "submood": "Classic noir - black and white, morally grey, everyone is hiding something",
-          "description": "The original mood cinema. Hard-boiled detectives, femmes fatales, rain-soaked streets, and a world where no one is innocent. Stylish, cynical, and endlessly atmospheric.",
-          "tags": [
-            "noir",
-            "classic",
-            "crime",
-            "mystery",
-            "black-and-white"
-          ]
-        },
-        {
-          "id": "neo-noir-crime",
-          "submood": "Neo-noir - modern crime, moral ambiguity, no clean endings",
-          "description": "Contemporary stories with a noir soul. The city is still corrupt, the characters are still compromised, but the setting is now. Crime that does not glamorize itself. Nobody wins cleanly.",
-          "tags": [
-            "neo-noir",
-            "crime",
-            "modern",
-            "ambiguous",
-            "gritty"
-          ]
-        },
-        {
-          "id": "moody-atmospheric",
-          "submood": "Just moody and atmospheric - slow, dark, beautifully shot",
-          "description": "The plot is almost beside the point. What matters is the light, the silence, the texture of every scene. Films that feel like being inside a painting at 2am. Best experienced alone.",
-          "tags": [
-            "atmospheric",
-            "moody",
-            "slow",
-            "visual",
-            "cinematic"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "eye-opening",
-      "emoji": "\ud83d\udc41\ufe0f",
-      "mood": "Eye-Opening & Important",
-      "description": "You want to understand the world better. Injustice, power, systems that affect real people \u2014 stories that change what you know and make you care about something you did not before.",
-      "submoods": [
-        {
-          "id": "social-justice-inequality",
-          "submood": "Social justice and inequality - stories about systems that fail people",
-          "description": "Racism, poverty, gender, class \u2014 the structural forces that shape people's lives in ways they did not choose. Told through specific individuals, not statistics. Uncomfortable and necessary.",
-          "tags": [
-            "social-justice",
-            "inequality",
-            "race",
-            "poverty",
-            "human-rights"
-          ]
-        },
-        {
-          "id": "political-power",
-          "submood": "Politics and power - how decisions get made and who pays for them",
-          "description": "How governments, corporations, and institutions actually work \u2014 not the textbook version. The compromises, the corruption, and the rare moments when someone does the right thing anyway.",
-          "tags": [
-            "politics",
-            "power",
-            "corruption",
-            "government",
-            "systemic"
-          ]
-        },
-        {
-          "id": "environmental-existential",
-          "submood": "Environmental and existential - the planet and our place on it",
-          "description": "Climate, extinction, technology, and the future of human civilization. Not doom scrolling \u2014 but honest, urgent storytelling about what is actually happening and what it means.",
-          "tags": [
-            "environment",
-            "climate",
-            "future",
-            "existential",
-            "technology"
-          ]
-        }
+        { "id": "atmosphere-noir", "submood": "Noir & moody", "description": "Hard-boiled, rain-soaked, morally grey. Jazz, shadows, cities at night." },
+        { "id": "atmosphere-surreal", "submood": "Surreal & dreamlike", "description": "Logic is not the point. You experience these films more than you understand them." },
+        { "id": "atmosphere-scifi", "submood": "Sci-fi & wonder", "description": "Space, the future, the improbability of existence. You finish feeling small in the best way." }
       ]
     }
   ]
