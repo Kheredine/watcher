@@ -2,190 +2,170 @@ import express from "express"
 import cors from "cors"
 import dotenv from "dotenv"
 import OpenAI from "openai"
-import axios from "axios"
 
 dotenv.config()
 
 const app = express()
-
 app.use(cors())
 app.use(express.json())
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+// Time/content label maps for the prompt
+const TIME_LABELS = {
+  'Any time':  'any duration',
+  '< 30 mins': 'under 30 minutes (short film, episode, documentary short)',
+  '~ 1 hour':  'around 1 hour',
+  '~ 2 hours': 'around 2 hours (standard movie length)',
+  '> 3 hours': 'over 3 hours (epic, mini-series, long documentary)',
+}
+
+const CONTENT_LABELS = {
+  'Any content':   'any type (movie, series, anime, TV show, or documentary)',
+  'Movies':        'movies only',
+  'Series':        'TV series only',
+  'Anime':         'anime only',
+  'TV Shows':      'TV shows and reality TV only',
+  'Documentaries': 'documentaries only',
+}
+
+const ERA_LABELS = {
+  'Any era':           'from any era',
+  'Classic (pre-1980)': 'from before 1980 (classic era)',
+  '80s':               'from the 1980s',
+  '90s':               'from the 1990s',
+  '2000s':             'from the 2000s',
+  '2010s':             'from the 2010s',
+  'Recent (2020+)':    'from 2020 or later (very recent)',
+}
+
 /*
 |--------------------------------------------------------------------------
-| AI → Generate Tags
+| POST /api/recommend
+| Returns 5 (first page) or 3 (subsequent pages) specific title suggestions
 |--------------------------------------------------------------------------
 */
+app.post("/api/recommend", async (req, res) => {
+  try {
+    const {
+      selectedMood,
+      selectedSubMood,
+      selectedTime,
+      selectedContent,
+      selectedEra,
+      page = 0,
+      excludeTitles = [],
+    } = req.body
 
-async function generateTags(prompt) {
+    const timeLabel    = TIME_LABELS[selectedTime]    || TIME_LABELS['Any time']
+    const contentLabel = CONTENT_LABELS[selectedContent] || CONTENT_LABELS['Any content']
+    const eraLabel     = ERA_LABELS[selectedEra]      || ERA_LABELS['Any era']
+    const count        = page === 0 ? 5 : 3
+    const excludeNote  = excludeTitles.length
+      ? `\nDo NOT suggest any of these titles (already recommended): ${excludeTitles.join(', ')}.`
+      : ''
 
-const openai = new OpenAI({
-apiKey: process.env.OPENAI_API_KEY
-})
+    const systemPrompt = `You are a world-class film critic, psychologist, and streaming expert.
+Your job is to recommend specific entertainment titles that perfectly match a viewer's emotional state and needs.
+You combine deep knowledge of cinema psychology (transportation theory, affective valence/arousal matching)
+with expertise across all genres, eras, and formats.
+Always return valid JSON only, no markdown.`
 
-const response = await openai.chat.completions.create({
-model: "gpt-4o-mini",
-messages: [
-{
-role: "user",
-content: `
-Convert this into TMDB search tags:
+    const userPrompt = `Find ${count} specific entertainment titles that match this emotional profile:
 
-${prompt}
+MOOD: ${selectedMood?.mood || 'Any'}
+SUBMOOD: ${selectedSubMood?.submood || 'Any'}
+EMOTIONAL NEED: ${selectedSubMood?.description || selectedMood?.description || 'General entertainment'}
+DURATION: ${timeLabel}
+FORMAT: ${contentLabel}
+ERA: ${eraLabel}
+${excludeNote}
+
+Requirements:
+- Pick SPECIFIC, real titles that exist and can be found on TMDB
+- Each recommendation must deeply match the emotional state described
+- Include a mix of well-known and hidden gems where possible
+- Give a personalized reason (2-3 sentences) explaining WHY this title matches this exact emotional need
 
 Return JSON:
-
 {
-"genres": [],
-"keywords": [],
-"tone": ""
-}
-`
-}
-]
+  "recommendations": [
+    {
+      "title": "Exact title",
+      "year": "YYYY",
+      "mediaType": "movie|tv",
+      "reason": "Why this perfectly matches the emotional profile..."
+    }
+  ]
+}`
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userPrompt },
+      ],
+      temperature: page > 0 ? 0.9 : 0.7,
+    })
+
+    const parsed = JSON.parse(response.choices[0].message.content)
+    res.json(parsed.recommendations || [])
+
+  } catch (err) {
+    console.error("Recommend error:", err.message)
+    res.status(500).json({ error: "Recommendation failed", detail: err.message })
+  }
 })
-
-return JSON.parse(response.choices[0].message.content)
-
-}
-
 
 /*
 |--------------------------------------------------------------------------
-| TMDB Search
+| POST /api/discover
+| Personalized recommendations for the Discover page
 |--------------------------------------------------------------------------
 */
+app.post("/api/discover", async (req, res) => {
+  try {
+    const { topMoods = [], currentHour = 12, likedTitles = [] } = req.body
 
-async function searchTMDB(tags, contentType) {
+    const moodContext = topMoods.length
+      ? `The user's most common moods are: ${topMoods.join(', ')}.`
+      : 'No mood history yet — pick broadly appealing titles.'
 
-const baseUrl = "https://api.themoviedb.org/3"
+    const timeContext = currentHour >= 22 || currentHour < 6
+      ? 'It is late night — prefer atmospheric, slower, or intense content.'
+      : currentHour >= 6 && currentHour < 12
+      ? 'It is morning — prefer lighter, uplifting, or inspiring content.'
+      : currentHour >= 12 && currentHour < 18
+      ? 'It is afternoon — prefer engaging, varied content.'
+      : 'It is evening — prefer immersive, high-quality content.'
 
-const type = contentType === "Movies" ? "movie" : "tv"
+    const likedContext = likedTitles.length
+      ? `Titles the user has liked: ${likedTitles.slice(0, 10).join(', ')}. Recommend similar but not identical.`
+      : ''
 
-const response = await axios.get(
-`${baseUrl}/discover/${type}`, {
-params: {
-api_key: process.env.TMDB_API_KEY,
-with_keywords: tags.keywords?.join(","),
-with_genres: tags.genres?.join(","),
-sort_by: "popularity.desc"
-}
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "You are a personalized entertainment curator. Return valid JSON only." },
+        { role: "user", content: `
+${moodContext}
+${timeContext}
+${likedContext}
+
+Recommend 6 specific titles for the user's Discover page.
+Return JSON: { "recommendations": [{ "title": "", "year": "", "mediaType": "movie|tv", "reason": "" }] }
+` },
+      ],
+    })
+
+    const parsed = JSON.parse(response.choices[0].message.content)
+    res.json(parsed.recommendations || [])
+  } catch (err) {
+    console.error("Discover error:", err.message)
+    res.status(500).json({ error: "Discovery failed" })
+  }
 })
 
-return response.data.results.slice(0,5)
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| JustWatch Availability
-|--------------------------------------------------------------------------
-*/
-
-async function getAvailability(title) {
-
-try {
-
-const response = await axios.get(
-"https://justwatch.com/us/search?q=" + encodeURIComponent(title)
-)
-
-return response.data
-
-} catch {
-
-return null
-
-}
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Main Endpoint
-|--------------------------------------------------------------------------
-*/
-
-app.post("/api/recommendations", async (req, res) => {
-
-try {
-
-const {
-selectedMood,
-selectedSubMood,
-selectedTime,
-selectedContent
-} = req.body
-
-
-const prompt = `
-Mood: ${selectedMood?.mood}
-Sub Mood: ${selectedSubMood?.submood}
-Description: ${selectedSubMood?.description}
-Time: ${selectedTime}
-Content: ${selectedContent}
-`
-
-
-/*
-|--------------------------------------------------------------------------
-| Step 1: AI → Tags
-|--------------------------------------------------------------------------
-*/
-
-const tags = await generateTags(prompt)
-
-
-/*
-|--------------------------------------------------------------------------
-| Step 2: TMDB Search
-|--------------------------------------------------------------------------
-*/
-
-const results = await searchTMDB(tags, selectedContent)
-
-
-/*
-|--------------------------------------------------------------------------
-| Step 3: JustWatch Availability
-|--------------------------------------------------------------------------
-*/
-
-const enriched = await Promise.all(
-
-results.slice(0,3).map(async item => {
-
-const availability = await getAvailability(item.title || item.name)
-
-return {
-title: item.title || item.name,
-year: item.release_date?.split("-")[0],
-poster: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
-overview: item.overview,
-availability
-}
-
-})
-
-)
-
-
-res.json(enriched)
-
-} catch (error) {
-
-console.error(error)
-
-res.status(500).json({
-error: "Recommendation failed"
-})
-
-}
-
-})
-
-app.listen(3001, () => {
-console.log("Hybrid AI recommendation server running")
-})
+app.listen(3001, () => console.log("Tazama AI server running on port 3001"))
