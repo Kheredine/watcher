@@ -46,15 +46,15 @@
   }
 
   .btn-pill {
-    @apply hover:bg-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-full border border-purple-500 bg-transparent backdrop-blur-md transition duration-300
+    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-full border border-purple-500/40 bg-transparent backdrop-blur-md
   }
 
   .btn-sub-pill {
-    @apply hover:bg-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-lg bg-transparent backdrop-blur-md transition duration-300
+    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light cursor-pointer py-2 px-8 rounded-lg border border-purple-500/40 bg-transparent backdrop-blur-md transition duration-300
   }
 
   .btn-time-pill {
-    @apply hover:bg-purple-500 text-[#fbffff] text-sm font-light py-2 px-8 rounded-lg bg-transparent backdrop-blur-md border border-[#7C3AED]/40 transition duration-300 cursor-pointer;
+    @apply hover:border-purple-500 text-[#fbffff] text-sm font-light py-2 px-8 rounded-lg bg-transparent backdrop-blur-md border border-purple-500/40 cursor-pointer;
   }
 
   .pill_active {
