@@ -31,6 +31,12 @@ export function useOracleState() {
     recommendations.value = [...recommendations.value, ...items]
   }
 
+  const removeRecommendation = (item) => {
+    recommendations.value = recommendations.value.filter(
+      r => !(String(r.id) === String(item.id) && r.type === item.type)
+    )
+  }
+
   return {
     selections,
     recommendations,
@@ -42,5 +48,6 @@ export function useOracleState() {
     setSelections,
     reset,
     appendRecommendations,
+    removeRecommendation,
   }
 }

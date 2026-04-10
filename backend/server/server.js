@@ -54,16 +54,34 @@ app.post("/api/recommend", async (req, res) => {
       selectedContent,
       selectedEra,
       page = 0,
-      excludeTitles = [],
+      excludeTitles   = [],
+      dislikedTitles  = [],
+      language        = 'en',
     } = req.body
 
-    const timeLabel    = TIME_LABELS[selectedTime]    || TIME_LABELS['Any time']
-    const contentLabel = CONTENT_LABELS[selectedContent] || CONTENT_LABELS['Any content']
-    const eraLabel     = ERA_LABELS[selectedEra]      || ERA_LABELS['Any era']
+    const isFr = language === 'fr'
+
+    // Use French mood/submood labels if available
+    const moodLabel    = isFr ? (selectedMood?.mood_fr    || selectedMood?.mood)    : selectedMood?.mood
+    const subMoodLabel = isFr ? (selectedSubMood?.submood_fr || selectedSubMood?.submood) : selectedSubMood?.submood
+    const emotionDesc  = isFr
+      ? (selectedSubMood?.description_fr || selectedSubMood?.description || selectedMood?.description_fr || selectedMood?.description)
+      : (selectedSubMood?.description    || selectedMood?.description)
+
+    const timeLabel    = TIME_LABELS[selectedTime]           || TIME_LABELS['Any time']
+    const contentLabel = CONTENT_LABELS[selectedContent]     || CONTENT_LABELS['Any content']
+    const eraLabel     = ERA_LABELS[selectedEra]             || ERA_LABELS['Any era']
     const count        = 3
-    const excludeNote  = excludeTitles.length
+
+    const excludeNote   = excludeTitles.length
       ? `\nDo NOT suggest any of these titles (already recommended): ${excludeTitles.join(', ')}.`
       : ''
+    const dislikedNote  = dislikedTitles.length
+      ? `\nThe user disliked these titles — avoid recommending anything similar in tone, genre or style: ${dislikedTitles.join(', ')}.`
+      : ''
+    const langNote      = isFr
+      ? '\nWrite the "reason" field in French.'
+      : '\nWrite the "reason" field in English.'
 
     const systemPrompt = `You are a world-class film critic, psychologist, and streaming expert.
 Your job is to recommend specific entertainment titles that perfectly match a viewer's emotional state and needs.
@@ -73,13 +91,13 @@ Always return valid JSON only, no markdown.`
 
     const userPrompt = `Find ${count} specific entertainment titles that match this emotional profile:
 
-MOOD: ${selectedMood?.mood || 'Any'}
-SUBMOOD: ${selectedSubMood?.submood || 'Any'}
-EMOTIONAL NEED: ${selectedSubMood?.description || selectedMood?.description || 'General entertainment'}
+MOOD: ${moodLabel || 'Any'}
+SUBMOOD: ${subMoodLabel || 'Any'}
+EMOTIONAL NEED: ${emotionDesc || 'General entertainment'}
 DURATION: ${timeLabel}
 FORMAT: ${contentLabel}
 ERA: ${eraLabel}
-${excludeNote}
+${excludeNote}${dislikedNote}${langNote}
 
 Requirements:
 - Pick SPECIFIC, real titles that exist and can be found on TMDB
@@ -91,7 +109,7 @@ Return JSON:
 {
   "recommendations": [
     {
-      "title": "Exact title",
+      "title": "Exact title in its original or English name (for TMDB lookup)",
       "year": "YYYY",
       "mediaType": "movie|tv",
       "reason": "Why this perfectly matches the emotional profile..."
@@ -106,7 +124,7 @@ Return JSON:
         { role: "system", content: systemPrompt },
         { role: "user",   content: userPrompt },
       ],
-      temperature: page > 0 ? 0.9 : 0.7,
+      temperature: page > 0 ? 0.92 : 0.72,
     })
 
     const parsed = JSON.parse(response.choices[0].message.content)

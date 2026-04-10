@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserLibrary } from '@/composables/useUserLibrary'
 import { useI18n } from '@/composables/useI18n'
@@ -11,13 +11,28 @@ const { t } = useI18n()
 const activeTab = ref('liked')
 
 const tabs = [
-  { id: 'liked',    icon: 'fa-heart',    labelKey: 'myLikes'     },
-  { id: 'watchlist',icon: 'fa-bookmark', labelKey: 'myWatchlist' },
-  { id: 'watched',  icon: 'fa-check',    labelKey: 'myWatched'   },
-  { id: 'history',  icon: 'fa-clock-rotate-left', labelKey: 'myHistory' },
+  { id: 'liked',     icon: 'fa-heart',              labelKey: 'myLikes'     },
+  { id: 'watchlist', icon: 'fa-bookmark',            labelKey: 'myWatchlist' },
+  { id: 'watched',   icon: 'fa-check',               labelKey: 'myWatched'   },
+  { id: 'history',   icon: 'fa-clock-rotate-left',   labelKey: 'myHistory'   },
 ]
 
-const listMap = { liked, watchlist, watched, history }
+// Computed so refs are properly unwrapped — dynamic key access on plain objects does NOT auto-unwrap refs in Vue templates
+const currentList = computed(() => {
+  if (activeTab.value === 'liked')     return liked.value
+  if (activeTab.value === 'watchlist') return watchlist.value
+  if (activeTab.value === 'watched')   return watched.value
+  if (activeTab.value === 'history')   return history.value
+  return []
+})
+
+const countFor = (tabId) => {
+  if (tabId === 'liked')     return liked.value.length
+  if (tabId === 'watchlist') return watchlist.value.length
+  if (tabId === 'watched')   return watched.value.length
+  if (tabId === 'history')   return history.value.length
+  return 0
+}
 
 const goDetail = (item) => {
   router.push({ name: 'detail', params: { type: item.type, id: item.id } })
@@ -83,7 +98,7 @@ const handleImport = () => {
       >
         <i :class="`fa-solid ${tab.icon} text-xs`"></i>
         {{ t[tab.labelKey] }}
-        <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full">{{ listMap[tab.id].length }}</span>
+        <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full">{{ countFor(tab.id) }}</span>
       </button>
     </div>
 
@@ -92,7 +107,7 @@ const handleImport = () => {
 
       <!-- Empty state -->
       <div
-        v-if="listMap[activeTab].length === 0"
+        v-if="currentList.length === 0"
         class="flex flex-col items-center gap-4 py-20 text-white/30"
       >
         <i class="fa-solid fa-box-open text-4xl"></i>
@@ -102,7 +117,7 @@ const handleImport = () => {
       <!-- Grid of items -->
       <div v-else-if="activeTab !== 'history'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         <div
-          v-for="item in listMap[activeTab]"
+          v-for="item in currentList"
           :key="`${item.type}-${item.id}`"
           class="group relative flex flex-col rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/10 hover:border-purple-500/40 transition"
           @click="goDetail(item)"

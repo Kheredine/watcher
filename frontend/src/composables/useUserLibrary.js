@@ -12,7 +12,7 @@ const watched   = ref(load('tazama_watched'))
 const liked     = ref(load('tazama_liked'))
 const history   = ref(load('tazama_history'))   // streaming platform import history
 
-const same = (a, b) => a.id === b.id && a.type === b.type
+const same = (a, b) => String(a.id) === String(b.id) && a.type === b.type
 
 export function useUserLibrary() {
   const isInWatchlist = (item) => watchlist.value.some(x => same(x, item))

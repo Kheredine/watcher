@@ -1,14 +1,14 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserLibrary } from '@/composables/useUserLibrary'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
-const { liked } = useUserLibrary()
-const { getTopMoods, getMoodForHour } = useUserPreferences()
-const { t } = useI18n()
+const { liked, watchlist, watched } = useUserLibrary()
+const { getTopMoods, getMoodForHour, interactionCount } = useUserPreferences()
+const { t, lang } = useI18n()
 
 const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY
 const TMDB_BASE = 'https://api.themoviedb.org/3'
@@ -36,8 +36,22 @@ const tmdb = async (path, params = {}) => {
 
 const grab15 = (data) => (data.results || []).slice(0, 15)
 
+// Threshold: user needs at least 3 library items OR 2 oracle sessions to get personalized recs
+const hasEnoughData = computed(() =>
+  (liked.value.length + watchlist.value.length + watched.value.length) >= 3 ||
+  interactionCount() >= 4
+)
+
+// Recent date cutoff — 2 years back
+const recentDate = () => {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 2)
+  return d.toISOString().split('T')[0]   // e.g. "2023-04-10"
+}
+
 // ── Fetch all rows ─────────────────────────────────────────────────────
 const fetchAllRows = async () => {
+  const since = recentDate()
   const [
     trendingData,
     filmsData,
@@ -47,11 +61,11 @@ const fetchAllRows = async () => {
     docsData,
   ] = await Promise.all([
     tmdb('/trending/all/week'),
-    tmdb('/trending/movie/week'),
-    tmdb('/discover/tv',    { sort_by: 'popularity.desc', without_genres: '16', 'vote_count.gte': '50' }),
+    tmdb('/discover/movie', { sort_by: 'popularity.desc', 'primary_release_date.gte': since, 'vote_count.gte': '100' }),
+    tmdb('/discover/tv',    { sort_by: 'popularity.desc', without_genres: '16', 'first_air_date.gte': since, 'vote_count.gte': '50' }),
     tmdb('/discover/tv',    { sort_by: 'popularity.desc', with_genres: '16', with_original_language: 'ja', 'vote_count.gte': '100' }),
-    tmdb('/discover/tv',    { sort_by: 'popularity.desc', with_genres: '10764' }),
-    tmdb('/discover/movie', { sort_by: 'popularity.desc', with_genres: '99' }),
+    tmdb('/discover/tv',    { sort_by: 'popularity.desc', with_genres: '10764', 'first_air_date.gte': since }),
+    tmdb('/discover/movie', { sort_by: 'popularity.desc', with_genres: '99', 'primary_release_date.gte': since }),
   ])
 
   trending.value = grab15(trendingData)
@@ -137,30 +151,45 @@ onMounted(() => {
     </div>
 
     <!-- ── For You (Personalized) ──────────────────────────────────── -->
-    <section v-if="personalized.length || loadingPersonal">
+    <section>
       <h2 class="section-title">✨ {{ t.forYou }}</h2>
 
-      <div v-if="loadingPersonal" class="row-loader">
-        <div class="spinner"></div><span>Loading...</span>
-      </div>
-
-      <div v-else class="scroll-row">
-        <div
-          v-for="item in personalized"
-          :key="`p-${item.id}`"
-          class="scroll-card"
-          @click="goDetail(item)"
-        >
-          <div class="poster-wrap">
-            <img v-if="item.poster" :src="item.poster" :alt="item.title" class="poster-img" />
-            <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
-            <div class="poster-overlay"></div>
-            <span v-if="item.rating" class="rating-badge">⭐ {{ item.rating }}</span>
-          </div>
-          <p class="card-title">{{ item.title }}</p>
-          <p v-if="item.reason" class="card-reason">{{ item.reason }}</p>
+      <!-- Not enough data yet -->
+      <div v-if="!hasEnoughData" class="flex items-start gap-4 p-5 rounded-2xl" style="background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.2)">
+        <i class="fa-solid fa-seedling text-purple-400 text-xl mt-0.5 flex-shrink-0"></i>
+        <div>
+          <p class="text-white/70 text-sm font-medium mb-1">{{ lang === 'fr' ? 'Utilisez l\'Oracle quelques fois pour débloquer cette section' : 'Use the Oracle a few times to unlock this section' }}</p>
+          <p style="color:rgba(255,255,255,0.38)" class="text-xs leading-relaxed">
+            {{ lang === 'fr'
+              ? 'Aimez, ajoutez à la liste ou marquez comme vus quelques contenus. Tazama apprendra vos goûts et vous proposera des recommandations personnalisées ici.'
+              : 'Like, save to watchlist or mark a few titles as watched. Tazama will learn your taste and surface personalized picks here.' }}
+          </p>
         </div>
       </div>
+
+      <template v-else>
+        <div v-if="loadingPersonal" class="row-loader">
+          <div class="spinner"></div><span>Loading...</span>
+        </div>
+
+        <div v-else class="scroll-row">
+          <div
+            v-for="item in personalized"
+            :key="`p-${item.id}`"
+            class="scroll-card"
+            @click="goDetail(item)"
+          >
+            <div class="poster-wrap">
+              <img v-if="item.poster" :src="item.poster" :alt="item.title" class="poster-img" />
+              <div v-else class="poster-placeholder"><i class="fa-solid fa-film"></i></div>
+              <div class="poster-overlay"></div>
+              <span v-if="item.rating" class="rating-badge">⭐ {{ item.rating }}</span>
+            </div>
+            <p class="card-title">{{ item.title }}</p>
+            <p v-if="item.reason" class="card-reason">{{ item.reason }}</p>
+          </div>
+        </div>
+      </template>
     </section>
 
     <!-- ── Trending Now ────────────────────────────────────────────── -->

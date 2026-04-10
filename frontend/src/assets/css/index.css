@@ -53,9 +53,7 @@
   }
 
   .pill_active {
-    background: rgba(124, 58, 237, 0.35) !important;
-    border-color: rgba(124, 58, 237, 0.7) !important;
-    color: white !important;
+    @apply bg-purple-600/35 border border-purple-700/70 text-white;
   }
 
   .badge {

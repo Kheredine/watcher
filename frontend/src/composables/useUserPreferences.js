@@ -29,10 +29,10 @@ export function useUserPreferences() {
     _save()
   }
 
-  // Call when user dismisses/ignores a card without engaging
+  // Call when user dislikes a card — stores id, type and title for backend context
   const recordDisliked = (item) => {
-    if (!prefs.value.dislikedItems.find(x => x.id === item.id && x.type === item.type)) {
-      prefs.value.dislikedItems.push({ id: item.id, type: item.type })
+    if (!prefs.value.dislikedItems.find(x => String(x.id) === String(item.id) && x.type === item.type)) {
+      prefs.value.dislikedItems.push({ id: item.id, type: item.type, title: item.title || '' })
       if (prefs.value.dislikedItems.length > 200) prefs.value.dislikedItems.shift()
       _save()
     }
@@ -64,7 +64,12 @@ export function useUserPreferences() {
   }
 
   const isDisliked = (item) =>
-    prefs.value.dislikedItems.some(x => x.id === item.id && x.type === item.type)
+    prefs.value.dislikedItems.some(x => String(x.id) === String(item.id) && x.type === item.type)
+
+  // How many total interactions the user has had (for threshold checks)
+  const interactionCount = () =>
+    Object.values(prefs.value.likedMoods).reduce((s, v) => s + v, 0) +
+    prefs.value.sessionMoods.length
 
   return {
     prefs,
@@ -75,5 +80,6 @@ export function useUserPreferences() {
     getMoodForHour,
     getTopMoods,
     isDisliked,
+    interactionCount,
   }
 }
