@@ -1,10 +1,14 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useAuth } from '@/composables/useAuth'
+import { useRouter } from 'vue-router'
 
 defineEmits(['toggle-sidebar'])
 
 const { t, lang, toggleLang } = useI18n()
+const { user, isPremium } = useAuth()
+const router = useRouter()
 
 const scrolled = ref(false)
 const handleScroll = () => { scrolled.value = window.scrollY > 20 }
@@ -36,7 +40,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
     </button>
   </div>
 
-  <!-- Center: search bar — grows to fill space, max-width capped, centered -->
+  <!-- Center: search bar -->
   <div class="flex-1 flex justify-center">
     <div class="flex items-center gap-3 px-5 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner w-full max-w-2xl">
       <i class="fa-solid fa-magnifying-glass text-white/40 text-base flex-shrink-0"></i>
@@ -50,13 +54,28 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   </div>
 
   <!-- Right: user profile pill -->
-  <div class="flex items-center gap-3 px-4 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner flex-shrink-0">
-    <img src="../assets/images/avatar.jfif" alt="User Avatar" class="w-7 h-7 rounded-lg object-cover">
-    <div class="hidden sm:flex flex-col leading-tight">
-      <span class="text-sm font-semibold text-white">Yuri P.</span>
-      <span class="text-[10px] text-blue-300">Standard</span>
+  <div
+    class="flex items-center gap-3 px-4 h-11 rounded-xl backdrop-blur-md shadow-inner flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
+    :class="isPremium ? 'bg-amber-600/20' : 'bg-[#7C3AED]/20'"
+    @click="router.push('/plan')"
+    title="View plan"
+  >
+    <!-- Avatar initial -->
+    <div
+      class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+      :style="isPremium ? 'background: rgba(217,119,6,0.5);' : 'background: rgba(124,58,237,0.5);'"
+    >
+      {{ user?.username?.[0]?.toUpperCase() || '?' }}
     </div>
-    <i class="fa-solid fa-chevron-right text-xs text-white/40"></i>
+
+    <div class="hidden sm:flex flex-col leading-tight">
+      <span class="text-sm font-semibold text-white">{{ user?.username || 'Account' }}</span>
+      <span v-if="isPremium" class="text-[10px] text-amber-400 flex items-center gap-1">
+        <i class="fa-solid fa-crown text-[8px]"></i> Premium
+      </span>
+      <span v-else class="text-[10px] text-purple-400">Standard</span>
+    </div>
+    <i class="fa-solid fa-chevron-right text-xs text-white/30"></i>
   </div>
 </header>
 </template>

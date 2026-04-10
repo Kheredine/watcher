@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 
+const API = 'http://localhost:3001'
+
 const load = (key, def) => {
   try { return JSON.parse(localStorage.getItem(key)) ?? def } catch { return def }
 }
@@ -8,13 +10,37 @@ const save = (key, val) => localStorage.setItem(key, JSON.stringify(val))
 // Module-level state
 const prefs = ref(load('tazama_prefs', {
   likedMoods:     {},   // mood id → count
-  dislikedItems:  [],   // { id, type } — skipped in "show more" flow
+  dislikedItems:  [],   // { id, type, title }
   skippedSets:    [],   // array of moods+submoods where user clicked "show more" on first results
   sessionMoods:   [],   // { hour, moodId } — time-of-day mood pattern
 }))
 
+// ── DB Sync ────────────────────────────────────────────────────────────────
+const getToken = () => localStorage.getItem('tazama_token')
+
+const pushPreferencesToDB = async () => {
+  const token = getToken()
+  if (!token) return
+  try {
+    await fetch(`${API}/api/user/preferences/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        likedMoods:    prefs.value.likedMoods,
+        dislikedItems: prefs.value.dislikedItems,
+        sessionMoods:  prefs.value.sessionMoods,
+      }),
+    })
+  } catch (e) {
+    console.warn('Preferences DB sync failed:', e.message)
+  }
+}
+
 export function useUserPreferences() {
-  const _save = () => save('tazama_prefs', prefs.value)
+  const _save = () => {
+    save('tazama_prefs', prefs.value)
+    pushPreferencesToDB()
+  }
 
   // Call when user likes or watches a recommendation
   const recordLikedMood = (moodId) => {
@@ -71,6 +97,34 @@ export function useUserPreferences() {
     Object.values(prefs.value.likedMoods).reduce((s, v) => s + v, 0) +
     prefs.value.sessionMoods.length
 
+  // ── Sync from DB on login ──────────────────────────────────────────────
+  const syncPreferencesFromDB = async () => {
+    const token = getToken()
+    if (!token) return
+    try {
+      const res  = await fetch(`${API}/api/user/preferences`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const p    = data.preferences || {}
+
+      // Merge DB data (DB wins for likedMoods counts)
+      if (Object.keys(p.likedMoods || {}).length) {
+        prefs.value.likedMoods = p.likedMoods
+      }
+      if (p.dislikedItems?.length) {
+        prefs.value.dislikedItems = p.dislikedItems
+      }
+      if (p.sessionMoods?.length) {
+        prefs.value.sessionMoods = p.sessionMoods
+      }
+      save('tazama_prefs', prefs.value)
+    } catch (e) {
+      console.warn('syncPreferencesFromDB failed:', e.message)
+    }
+  }
+
   return {
     prefs,
     recordLikedMood,
@@ -81,5 +135,6 @@ export function useUserPreferences() {
     getTopMoods,
     isDisliked,
     interactionCount,
+    syncPreferencesFromDB,
   }
 }

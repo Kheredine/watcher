@@ -3,6 +3,14 @@ import cors from "cors"
 import dotenv from "dotenv"
 import OpenAI from "openai"
 
+// Initialize DB (creates tables on first run)
+import './db.js'
+
+// Route modules
+import authRoutes from './routes/auth.js'
+import userRoutes from './routes/user.js'
+import chatRoutes from './routes/chat.js'
+
 dotenv.config()
 
 const app = express()
@@ -10,6 +18,11 @@ app.use(cors())
 app.use(express.json())
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+// ── Auth & User Routes ─────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes)
+app.use('/api/user', userRoutes)
+app.use('/api/chat', chatRoutes)
 
 // Time/content label maps for the prompt
 const TIME_LABELS = {
@@ -186,4 +199,4 @@ Return JSON: { "recommendations": [{ "title": "", "year": "", "mediaType": "movi
   }
 })
 
-app.listen(3001, () => console.log("Tazama AI server running on port 3001"))
+app.listen(3001, () => console.log("🎬 Tazama AI server running on port 3001"))
