@@ -1,6 +1,10 @@
+// ⚠️ dotenv/config MUST be the very first import in ESM.
+// All static imports are hoisted and evaluated before module body code,
+// so dotenv.config() in the body would be too late for route modules.
+import 'dotenv/config'
+
 import express from "express"
 import cors from "cors"
-import dotenv from "dotenv"
 import OpenAI from "openai"
 
 // Initialize DB (creates tables on first run)
@@ -10,8 +14,6 @@ import './db.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/user.js'
 import chatRoutes from './routes/chat.js'
-
-dotenv.config()
 
 const app = express()
 app.use(cors())

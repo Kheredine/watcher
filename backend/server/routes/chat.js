@@ -4,7 +4,13 @@ import db from '../db.js'
 import { verifyToken, requirePremium } from '../middleware/auth.js'
 
 const router = Router()
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+// Lazy init — ensures env vars are loaded before the client is created
+let _openai = null
+const openai = () => {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return _openai
+}
 
 const ORACLE_SYSTEM = `You are the Oracle — a witty, deeply knowledgeable entertainment expert, film critic, and curator with an air of mystique. You speak with confidence, warmth, and personality.
 
@@ -44,7 +50,7 @@ router.post('/oracle', verifyToken, requirePremium, async (req, res) => {
       ...history.map(m => ({ role: m.role, content: m.content })),
     ]
 
-    const response = await openai.chat.completions.create({
+    const response = await openai().chat.completions.create({
       model: 'gpt-4o-mini',
       messages,
       temperature: 0.85,
