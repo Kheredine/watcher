@@ -1,18 +1,20 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/composables/useAuth'
+import TazamaLogo from '@/components/TazamaLogo.vue'
 
 const router = useRouter()
 
-const activeTab = ref('login') // 'login' | 'register'
+const activeTab = ref('login')
 const loading   = ref(false)
 const errorMsg  = ref('')
+const email     = ref('')
+const username  = ref('')
+const password  = ref('')
 
-// Form fields
-const email    = ref('')
-const username = ref('')
-const password = ref('')
+let mounted = true
+onUnmounted(() => { mounted = false })
 
 const switchTab = (tab) => {
   activeTab.value = tab
@@ -20,6 +22,7 @@ const switchTab = (tab) => {
 }
 
 const submit = async () => {
+  if (!mounted) return
   errorMsg.value = ''
   loading.value  = true
 
@@ -30,15 +33,16 @@ const submit = async () => {
     } else {
       if (!username.value.trim()) {
         errorMsg.value = 'Please enter a username'
+        loading.value = false
         return
       }
       await register(email.value.trim(), username.value.trim(), password.value)
       router.push('/plan')
     }
   } catch (err) {
-    errorMsg.value = err.message || 'Something went wrong'
+    if (mounted) errorMsg.value = err.message || 'Something went wrong'
   } finally {
-    loading.value = false
+    if (mounted) loading.value = false
   }
 }
 </script>
@@ -51,7 +55,9 @@ const submit = async () => {
 
       <!-- Brand -->
       <div class="flex flex-col items-center gap-3 mb-10">
-        <img src="@/assets/images/dika.png" alt="Tazama" class="w-14 h-14 rounded-2xl shadow-lg shadow-purple-500/20">
+        <div class="shadow-2xl shadow-purple-900/50 rounded-2xl">
+          <TazamaLogo :size="64" uid="auth" />
+        </div>
         <h1 class="font-logo text-3xl font-bold text-white tracking-tight">Tazama</h1>
         <p class="text-white/40 text-sm">Your mood-based entertainment oracle</p>
       </div>

@@ -1,25 +1,392 @@
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 import { useI18n } from '@/composables/useI18n'
-const { t, lang, setLang } = useI18n()
-</script>
-<template>
-  <div class="flex flex-col gap-8 pb-12 max-w-lg">
-    <h1 class="text-2xl font-bold text-white">{{ t.navSettings }}</h1>
+import { useUserLibrary } from '@/composables/useUserLibrary'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 
-    <div class="flex flex-col gap-4 p-6 rounded-xl bg-white/5 border border-white/10">
-      <h2 class="text-sm font-semibold text-white/60 uppercase tracking-widest">Language</h2>
-      <div class="flex gap-3">
-        <button
-          class="px-4 py-2 rounded-xl text-sm font-medium transition"
-          :class="lang === 'en' ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/50 hover:text-white'"
-          @click="setLang('en')"
-        >English</button>
-        <button
-          class="px-4 py-2 rounded-xl text-sm font-medium transition"
-          :class="lang === 'fr' ? 'bg-purple-600 text-white' : 'bg-white/5 text-white/50 hover:text-white'"
-          @click="setLang('fr')"
-        >Français</button>
+const router  = useRouter()
+const { user, isPremium, logout, apiFetch } = useAuth()
+const { t, lang, setLang } = useI18n()
+const { liked, watchlist, watched, history } = useUserLibrary()
+const { prefs, getTopMoods, interactionCount } = useUserPreferences()
+
+// ── User title (premium) ──────────────────────────────────────────────────
+const title         = ref(null)  // { title, subtitle, emoji, traits, funFacts, cinemaType }
+const titleLoading  = ref(false)
+const titleError    = ref('')
+const titleCached   = ref(null)  // simple session cache
+
+const generateTitle = async () => {
+  titleLoading.value = true
+  titleError.value   = ''
+  try {
+    const topMoods    = getTopMoods(5)
+    const likedTitles = liked.value.map(i => i.title).filter(Boolean)
+    const sessionMoods = prefs.value.sessionMoods || []
+
+    const result = await apiFetch('/api/user/generate-title', {
+      method: 'POST',
+      body: JSON.stringify({
+        topMoods,
+        likedTitles,
+        watchedCount:   watched.value.length,
+        watchlistCount: watchlist.value.length,
+        dislikedCount:  (prefs.value.dislikedItems || []).length,
+        sessionMoods,
+        language:       lang.value,
+      }),
+    })
+    title.value       = result
+    titleCached.value = result
+  } catch (err) {
+    titleError.value = err.message || 'Could not generate your title'
+  } finally {
+    titleLoading.value = false
+  }
+}
+
+// Auto-generate on mount if premium and has activity
+const hasActivity = computed(() =>
+  liked.value.length + watched.value.length + watchlist.value.length >= 1 ||
+  interactionCount() >= 1
+)
+
+onMounted(() => {
+  if (isPremium.value && hasActivity.value && !titleCached.value) {
+    generateTitle()
+  } else if (titleCached.value) {
+    title.value = titleCached.value
+  }
+})
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+const stats = computed(() => [
+  { label: 'Liked',      count: liked.value.length,     icon: 'fa-heart',         color: '#db2777' },
+  { label: 'Watchlist',  count: watchlist.value.length, icon: 'fa-bookmark',      color: '#7c3aed' },
+  { label: 'Watched',    count: watched.value.length,   icon: 'fa-check-circle',  color: '#059669' },
+  { label: 'History',    count: history.value.length,   icon: 'fa-clock-rotate-left', color: '#6b7280' },
+])
+
+// ── Logout ─────────────────────────────────────────────────────────────────
+const handleLogout = async () => {
+  await logout()
+  router.push('/auth')
+}
+
+// ── Reset preferences ──────────────────────────────────────────────────────
+const confirmReset = ref(false)
+const resetPrefs = () => {
+  localStorage.removeItem('tazama_prefs')
+  localStorage.removeItem('tazama_watchlist')
+  localStorage.removeItem('tazama_liked')
+  localStorage.removeItem('tazama_watched')
+  localStorage.removeItem('tazama_history')
+  title.value = null
+  confirmReset.value = false
+  window.location.reload()
+}
+
+// ── Member since ───────────────────────────────────────────────────────────
+const memberSince = computed(() => {
+  if (!user.value?.created_at) return 'Recently'
+  const d = new Date(user.value.created_at * 1000)
+  return d.toLocaleDateString(lang.value === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' })
+})
+</script>
+
+<template>
+  <div class="max-w-2xl mx-auto py-4 flex flex-col gap-6">
+
+    <!-- ── Profile Header ──────────────────────────────────────────────── -->
+    <div class="flex items-center gap-5 p-6 rounded-2xl border border-white/8"
+         style="background: rgba(255,255,255,0.03);">
+
+      <!-- Avatar -->
+      <div
+        class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-lg"
+        :style="isPremium
+          ? 'background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 4px 24px rgba(217,119,6,0.35);'
+          : 'background: linear-gradient(135deg, #5b21b6, #7c3aed); box-shadow: 0 4px 24px rgba(124,58,237,0.35);'"
+      >
+        {{ user?.username?.[0]?.toUpperCase() || '?' }}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-xl font-bold text-white">{{ user?.username }}</h1>
+          <!-- Plan badge -->
+          <span v-if="isPremium"
+                class="text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1"
+                style="background: rgba(217,119,6,0.2); color: #fbbf24; border: 1px solid rgba(217,119,6,0.35);">
+            <i class="fa-solid fa-crown text-[9px]"></i> Premium
+          </span>
+          <span v-else
+                class="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                style="background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3);">
+            Standard
+          </span>
+        </div>
+        <p class="text-white/45 text-sm mt-0.5">{{ user?.email }}</p>
+        <p class="text-white/25 text-xs mt-1">Member since {{ memberSince }}</p>
+      </div>
+
+      <!-- Edit plan button -->
+      <button
+        class="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition"
+        :class="isPremium
+          ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border border-amber-500/25'
+          : 'bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-600/25'"
+        @click="router.push('/plan')"
+      >
+        {{ isPremium ? '✦ Premium' : 'Upgrade' }}
+      </button>
+    </div>
+
+    <!-- ── Quick Stats ──────────────────────────────────────────────────── -->
+    <div class="grid grid-cols-4 gap-3">
+      <div v-for="s in stats" :key="s.label"
+           class="flex flex-col items-center gap-1.5 py-4 rounded-xl border border-white/7"
+           style="background: rgba(255,255,255,0.03);">
+        <i :class="`fa-solid ${s.icon} text-base`" :style="`color: ${s.color}`"></i>
+        <span class="text-lg font-bold text-white">{{ s.count }}</span>
+        <span class="text-[11px] text-white/35">{{ s.label }}</span>
       </div>
     </div>
+
+    <!-- ── Oracle Title (Premium) ───────────────────────────────────────── -->
+    <section class="rounded-2xl border overflow-hidden"
+             :style="isPremium
+               ? 'border-color: rgba(217,119,6,0.25); background: linear-gradient(160deg, rgba(217,119,6,0.07), rgba(255,255,255,0.02));'
+               : 'border-color: rgba(255,255,255,0.07); background: rgba(255,255,255,0.02);'">
+
+      <div class="flex items-center justify-between px-5 pt-5 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-scroll" :class="isPremium ? 'text-amber-400' : 'text-white/25'"></i>
+          <h2 class="text-sm font-bold text-white/70 uppercase tracking-wider">Your Watcher Title</h2>
+        </div>
+        <span v-if="!isPremium"
+              class="text-[11px] text-white/30 flex items-center gap-1">
+          <i class="fa-solid fa-lock text-[10px]"></i> Premium
+        </span>
+      </div>
+
+      <!-- Premium locked state -->
+      <div v-if="!isPremium" class="px-5 pb-6 text-center">
+        <p class="text-white/30 text-sm mb-3">Unlock Premium to discover your unique watcher personality — generated by Oracle AI from your taste and habits.</p>
+        <button class="btn-primary text-xs px-5 py-2" @click="router.push('/plan')">
+          <i class="fa-solid fa-crown mr-1.5"></i>Unlock Premium
+        </button>
+      </div>
+
+      <!-- No activity yet -->
+      <div v-else-if="isPremium && !hasActivity" class="px-5 pb-6 text-center">
+        <p class="text-white/35 text-sm mb-2">Start using the Oracle and building your library — then come back to see your title!</p>
+      </div>
+
+      <!-- Loading -->
+      <div v-else-if="titleLoading" class="px-5 pb-8 flex flex-col items-center gap-3">
+        <div class="flex gap-1.5 mt-2">
+          <div class="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style="animation-delay:0ms"></div>
+          <div class="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style="animation-delay:130ms"></div>
+          <div class="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style="animation-delay:260ms"></div>
+        </div>
+        <p class="text-white/30 text-xs">Oracle is analyzing your taste…</p>
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="titleError" class="px-5 pb-5 flex flex-col items-center gap-3 text-center">
+        <p class="text-red-400/70 text-sm">{{ titleError }}</p>
+        <button class="text-xs text-amber-400 hover:text-amber-300 transition" @click="generateTitle">Try again</button>
+      </div>
+
+      <!-- Title card -->
+      <div v-else-if="title" class="px-5 pb-5 flex flex-col gap-4">
+        <!-- Main title -->
+        <div class="flex flex-col items-center text-center py-3 px-4 rounded-xl"
+             style="background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.18);">
+          <div class="text-4xl mb-2">{{ title.emoji }}</div>
+          <h3 class="text-xl font-bold text-white font-logo mb-1">{{ title.title }}</h3>
+          <p class="text-amber-400/80 text-sm italic">{{ title.subtitle }}</p>
+        </div>
+
+        <!-- Cinema type -->
+        <p v-if="title.cinemaType" class="text-white/50 text-sm text-center italic px-2">
+          "{{ title.cinemaType }}"
+        </p>
+
+        <!-- Traits -->
+        <div>
+          <p class="text-xs font-semibold text-white/35 uppercase tracking-wider mb-2">Your Traits</p>
+          <div class="flex flex-wrap gap-2">
+            <span v-for="trait in title.traits" :key="trait"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300/80"
+                  style="background: rgba(217,119,6,0.12); border: 1px solid rgba(217,119,6,0.22);">
+              {{ trait }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Fun facts -->
+        <div>
+          <p class="text-xs font-semibold text-white/35 uppercase tracking-wider mb-2">Oracle's Observations</p>
+          <ul class="flex flex-col gap-2">
+            <li v-for="fact in title.funFacts" :key="fact"
+                class="flex items-start gap-2 text-sm text-white/60">
+              <i class="fa-solid fa-eye text-amber-400/60 text-xs mt-1 flex-shrink-0"></i>
+              {{ fact }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Refresh -->
+        <button
+          class="text-xs text-white/25 hover:text-amber-400 transition flex items-center gap-1.5 self-center mt-1"
+          :disabled="titleLoading"
+          @click="generateTitle"
+        >
+          <i class="fa-solid fa-rotate-right text-[10px]"></i>
+          Regenerate title
+        </button>
+      </div>
+
+      <!-- Generate button (premium, has activity, no title yet) -->
+      <div v-else class="px-5 pb-5 text-center">
+        <button
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer"
+          style="background: linear-gradient(135deg,#d97706,#f59e0b); color: #0a0615;"
+          @click="generateTitle"
+        >
+          <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Reveal My Title
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ── Language ─────────────────────────────────────────────────────── -->
+    <section class="settings-card">
+      <h2 class="settings-label">Language / Langue</h2>
+      <div class="flex gap-3">
+        <button
+          class="settings-option-btn"
+          :class="lang === 'en' ? 'settings-option-btn--active' : ''"
+          @click="setLang('en')"
+        >
+          🇬🇧 English
+        </button>
+        <button
+          class="settings-option-btn"
+          :class="lang === 'fr' ? 'settings-option-btn--active' : ''"
+          @click="setLang('fr')"
+        >
+          🇫🇷 Français
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Plan ──────────────────────────────────────────────────────────── -->
+    <section class="settings-card">
+      <h2 class="settings-label">Your Plan</h2>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-white font-semibold">{{ isPremium ? '✦ Premium' : 'Standard' }}</p>
+          <p class="text-white/35 text-xs mt-0.5">
+            {{ isPremium ? 'Full Oracle access — all premium features unlocked' : 'Free plan — upgrade for Oracle Chat & Analytics' }}
+          </p>
+        </div>
+        <button
+          v-if="!isPremium"
+          class="px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+          style="background: linear-gradient(135deg,#d97706,#f59e0b); color: #0a0615;"
+          @click="router.push('/plan')"
+        >
+          Upgrade
+        </button>
+        <button v-else class="text-xs text-white/30 hover:text-white/60 transition px-4 py-2 rounded-xl border border-white/8"
+                @click="router.push('/plan')">
+          View Plans
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Danger zone ───────────────────────────────────────────────────── -->
+    <section class="settings-card border-red-900/20">
+      <h2 class="settings-label text-red-400/60">Danger Zone</h2>
+
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-white/70 text-sm font-medium">Reset All Data</p>
+            <p class="text-white/30 text-xs">Clears library, preferences, and title. Cannot be undone.</p>
+          </div>
+          <button
+            v-if="!confirmReset"
+            class="px-4 py-2 rounded-xl text-xs font-semibold text-red-400/70 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition"
+            @click="confirmReset = true"
+          >Reset</button>
+          <div v-else class="flex gap-2">
+            <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600/80 text-white hover:bg-red-600 transition" @click="resetPrefs">Yes, reset</button>
+            <button class="px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/70 transition" @click="confirmReset = false">Cancel</button>
+          </div>
+        </div>
+
+        <div class="h-px bg-white/5"></div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-white/70 text-sm font-medium">Sign Out</p>
+            <p class="text-white/30 text-xs">You'll need to sign in again to access Tazama.</p>
+          </div>
+          <button
+            class="px-4 py-2 rounded-xl text-xs font-semibold text-red-400/70 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition"
+            @click="handleLogout"
+          >Sign Out</button>
+        </div>
+      </div>
+    </section>
+
+    <p class="text-center text-white/15 text-xs pb-4">
+      Tazama · Powered by Oracle AI &amp; TMDB
+    </p>
+
   </div>
 </template>
+
+<style scoped>
+.settings-card {
+  padding: 20px 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.025);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-option-btn {
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.50);
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.settings-option-btn:hover { color: white; }
+.settings-option-btn--active {
+  background: rgba(124,58,237,0.25);
+  color: white;
+  border-color: rgba(124,58,237,0.4);
+}
+</style>

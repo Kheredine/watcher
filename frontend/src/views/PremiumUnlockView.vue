@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { unlockPremium, isPremium } from '@/composables/useAuth'
 
@@ -12,32 +12,45 @@ const error      = ref('')
 const success    = ref(false)
 const shaking    = ref(false)
 
+// Track mounted state so async callbacks don't update unmounted component
+let mounted = true
+let navTimer = null
+let shakeTimer = null
+
+onUnmounted(() => {
+  mounted = false
+  clearTimeout(navTimer)
+  clearTimeout(shakeTimer)
+})
+
 onMounted(async () => {
   if (isPremium.value) { router.push('/'); return }
   try {
     const res  = await fetch('http://localhost:3001/api/auth/premium-questions')
     const data = await res.json()
-    questions.value = data
+    if (mounted) questions.value = data
   } catch {
-    error.value = 'Could not load questions. Is the server running?'
+    if (mounted) error.value = 'Could not load questions. Is the server running?'
   }
 })
 
 const submit = async () => {
+  if (!mounted) return
   error.value = ''
   loading.value = true
 
   try {
     await unlockPremium(answers.value)
+    if (!mounted) return
     success.value = true
-    setTimeout(() => router.push('/'), 2500)
+    navTimer = setTimeout(() => router.push('/'), 2500)
   } catch (err) {
+    if (!mounted) return
     error.value = err.message || 'Incorrect answers — try again'
-    // Shake animation
     shaking.value = true
-    setTimeout(() => { shaking.value = false }, 600)
+    shakeTimer = setTimeout(() => { if (mounted) shaking.value = false }, 600)
   } finally {
-    loading.value = false
+    if (mounted) loading.value = false
   }
 }
 </script>

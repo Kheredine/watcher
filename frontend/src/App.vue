@@ -22,19 +22,18 @@ const isPublicRoute = computed(() => route.meta?.public)
         @click="sidebarOpen = false"
       />
 
-      <!-- Sidebar: 256px fixed on desktop, slide-in on mobile -->
       <SideBar :open="sidebarOpen" @close="sidebarOpen = false" />
 
-      <!-- Main area: offset by sidebar width on desktop only -->
       <div class="flex-1 flex flex-col min-w-0 md:ml-64">
         <TopBar @toggle-sidebar="sidebarOpen = !sidebarOpen" />
 
-        <!-- Page content: top padding clears the fixed header -->
         <main class="flex-1 pt-20 px-4 md:px-8 pb-10">
           <div class="max-w-7xl mx-auto w-full">
-            <RouterView v-slot="{ Component }">
-              <Transition name="page" mode="out-in">
-                <component :is="Component" />
+            <!-- No mode="out-in": prevents insertBefore-null crash when components
+                 navigate away programmatically mid-transition -->
+            <RouterView v-slot="{ Component, route: r }">
+              <Transition name="page">
+                <component :is="Component" :key="r.path" />
               </Transition>
             </RouterView>
           </div>
@@ -42,12 +41,12 @@ const isPublicRoute = computed(() => route.meta?.public)
       </div>
     </template>
 
-    <!-- ── Public layout (auth page, full-screen) ────────────────────────── -->
+    <!-- ── Public layout ─────────────────────────────────────────────────── -->
     <template v-else>
       <div class="flex-1">
-        <RouterView v-slot="{ Component }">
-          <Transition name="page" mode="out-in">
-            <component :is="Component" />
+        <RouterView v-slot="{ Component, route: r }">
+          <Transition name="page">
+            <component :is="Component" :key="r.path" />
           </Transition>
         </RouterView>
       </div>

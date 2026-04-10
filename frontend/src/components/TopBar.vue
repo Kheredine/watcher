@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
+import TazamaLogo from '@/components/TazamaLogo.vue'
 
 defineEmits(['toggle-sidebar'])
 
@@ -53,17 +54,19 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
     </div>
   </div>
 
-  <!-- Right: user profile pill -->
+  <!-- Right: user profile pill → opens /settings -->
   <div
-    class="flex items-center gap-3 px-4 h-11 rounded-xl backdrop-blur-md shadow-inner flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
-    :class="isPremium ? 'bg-amber-600/20' : 'bg-[#7C3AED]/20'"
-    @click="router.push('/plan')"
-    title="View plan"
+    class="flex items-center gap-2.5 px-3.5 h-11 rounded-xl backdrop-blur-md shadow-inner flex-shrink-0 cursor-pointer transition-all hover:opacity-85 hover:scale-[0.98]"
+    :class="isPremium ? 'bg-amber-600/18' : 'bg-[#7C3AED]/20'"
+    @click="router.push('/settings')"
+    title="My Profile"
   >
     <!-- Avatar initial -->
     <div
       class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-      :style="isPremium ? 'background: rgba(217,119,6,0.5);' : 'background: rgba(124,58,237,0.5);'"
+      :style="isPremium
+        ? 'background: linear-gradient(135deg,#d97706,#f59e0b);'
+        : 'background: rgba(124,58,237,0.55);'"
     >
       {{ user?.username?.[0]?.toUpperCase() || '?' }}
     </div>

@@ -3,6 +3,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
+import TazamaLogo from '@/components/TazamaLogo.vue'
 
 defineProps({ open: Boolean })
 defineEmits(['close'])
@@ -24,36 +25,11 @@ const handleLogout = async () => {
     style="background: #0d0d18; border-right: 1px solid rgba(255,255,255,0.07);"
   >
     <!-- Brand -->
-    <div class="px-7 pt-7 pb-3">
+    <div class="px-6 pt-7 pb-5">
       <RouterLink to="/" class="flex items-center gap-3" @click="$emit('close')">
-        <img src="../assets/images/dika.png" alt="Tazama" class="w-9 h-9 rounded-xl">
+        <TazamaLogo :size="38" uid="sb" />
         <span class="font-logo text-2xl font-bold text-white tracking-tight">Tazama</span>
       </RouterLink>
-    </div>
-
-    <!-- User identity block -->
-    <div v-if="user" class="px-4 pb-3">
-      <div
-        class="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
-        style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);"
-        @click="router.push('/plan'); $emit('close')"
-      >
-        <!-- Avatar initial -->
-        <div
-          class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-          :style="isPremium ? 'background: rgba(217,119,6,0.35);' : 'background: rgba(124,58,237,0.35);'"
-        >
-          {{ user.username?.[0]?.toUpperCase() || '?' }}
-        </div>
-        <div class="flex flex-col leading-tight min-w-0">
-          <span class="text-white text-sm font-semibold truncate">{{ user.username }}</span>
-          <span v-if="isPremium" class="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-            <i class="fa-solid fa-crown text-[9px]"></i> Premium
-          </span>
-          <span v-else class="text-[11px] font-medium text-purple-400">Standard</span>
-        </div>
-        <i class="fa-solid fa-chevron-right text-[10px] text-white/20 ml-auto flex-shrink-0"></i>
-      </div>
     </div>
 
     <!-- Nav -->
@@ -83,14 +59,14 @@ const handleLogout = async () => {
       <!-- Divider -->
       <div class="h-px bg-white/6 my-2 mx-1"></div>
 
-      <!-- Premium section label -->
-      <div class="px-2 py-1">
-        <span class="text-[10px] font-bold uppercase tracking-widest" :class="isPremium ? 'text-amber-400/60' : 'text-white/20'">
+      <!-- Premium section -->
+      <div class="px-2 pb-1">
+        <span class="text-[10px] font-bold uppercase tracking-widest"
+              :class="isPremium ? 'text-amber-400/60' : 'text-white/20'">
           Premium
         </span>
       </div>
 
-      <!-- Oracle Chat -->
       <RouterLink
         to="/oracle-chat"
         active-class="sidebar-active"
@@ -104,7 +80,6 @@ const handleLogout = async () => {
         <i v-if="!isPremium" class="fa-solid fa-lock text-[10px] text-white/25 ml-auto"></i>
       </RouterLink>
 
-      <!-- Analytics -->
       <RouterLink
         to="/analytics"
         active-class="sidebar-active"
@@ -169,19 +144,15 @@ const handleLogout = async () => {
   border: 1px solid var(--accent-border, rgba(124,58,237,0.35));
 }
 
-.sidebar-link--locked {
-  cursor: default;
-}
+.sidebar-link--locked { cursor: default; }
 .sidebar-link--locked:hover {
   background: rgba(255,255,255,0.03);
   color: rgba(255,255,255,0.35);
 }
 
-.sidebar-link--logout {
-  color: rgba(248, 113, 113, 0.55);
-}
+.sidebar-link--logout { color: rgba(248,113,113,0.55); }
 .sidebar-link--logout:hover {
   background: rgba(239,68,68,0.10);
-  color: rgba(248, 113, 113, 0.85);
+  color: rgba(248,113,113,0.85);
 }
 </style>

@@ -1,8 +1,16 @@
 import { Router } from 'express'
+import OpenAI from 'openai'
 import db from '../db.js'
-import { verifyToken } from '../middleware/auth.js'
+import { verifyToken, requirePremium } from '../middleware/auth.js'
 
 const router = Router()
+
+// Lazy OpenAI init
+let _openai = null
+const openai = () => {
+  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return _openai
+}
 
 // ── GET /api/user/library ───────────────────────────────────────────────────
 router.get('/library', verifyToken, (req, res) => {
@@ -120,6 +128,72 @@ router.post('/preferences/sync', verifyToken, (req, res) => {
   } catch (err) {
     console.error('Sync preferences error:', err.message)
     res.status(500).json({ error: 'Failed to sync preferences' })
+  }
+})
+
+// ── POST /api/user/generate-title ──────────────────────────────────────────
+// Premium only — generates a funny, insightful watcher personality title
+router.post('/generate-title', verifyToken, requirePremium, async (req, res) => {
+  try {
+    const {
+      topMoods      = [],
+      likedTitles   = [],
+      watchedCount  = 0,
+      watchlistCount = 0,
+      dislikedCount = 0,
+      sessionMoods  = [],
+      language      = 'en',
+    } = req.body
+
+    // Determine dominant viewing time
+    const hourCounts = {}
+    sessionMoods.forEach(s => { hourCounts[s.hour] = (hourCounts[s.hour] || 0) + 1 })
+    const dominantHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+    const timeLabel = dominantHour === undefined ? 'no particular time' :
+      Number(dominantHour) < 6  ? 'late at night' :
+      Number(dominantHour) < 12 ? 'in the morning' :
+      Number(dominantHour) < 18 ? 'in the afternoon' : 'in the evening'
+
+    const isFr = language === 'fr'
+
+    const prompt = `You are a witty pop-culture analyst. Based on a user's entertainment preferences, create a fun, insightful "watcher personality" profile.
+
+User data:
+- Top mood categories: ${topMoods.join(', ') || 'unknown'}
+- Liked titles: ${likedTitles.slice(0, 8).join(', ') || 'none yet'}
+- Titles watched: ${watchedCount}
+- Titles on watchlist: ${watchlistCount}
+- Titles disliked: ${dislikedCount}
+- Favorite viewing time: ${timeLabel}
+
+Create a personality profile. Be funny, specific, and insightful. Reference real traits that can be inferred from the data.
+${isFr ? 'Write everything in French.' : 'Write in English.'}
+
+Return ONLY valid JSON (no markdown):
+{
+  "title": "A specific, funny, flattering title (e.g. 'The Midnight Thriller Philosopher')",
+  "subtitle": "A one-liner that nails their vibe (e.g. 'Falls asleep to horror films, cries during ads')",
+  "emoji": "One perfect emoji for this personality",
+  "traits": ["trait 1", "trait 2", "trait 3", "trait 4"],
+  "funFacts": ["funny observation 1", "funny observation 2", "funny observation 3"],
+  "cinemaType": "The kind of filmgoer they'd be in real life (1 sentence)"
+}`
+
+    const response = await openai().chat.completions.create({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'You are a witty pop-culture analyst. Return valid JSON only.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.88,
+    })
+
+    const result = JSON.parse(response.choices[0].message.content)
+    res.json(result)
+  } catch (err) {
+    console.error('Generate title error:', err.message)
+    res.status(500).json({ error: 'Could not generate title' })
   }
 })
 
