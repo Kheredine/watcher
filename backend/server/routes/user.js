@@ -285,20 +285,15 @@ router.get('/public/:userId', verifyToken, (req, res) => {
     const viewer   = req.user.id
 
     const user = db.prepare(
-      'SELECT id, username, plan, avatar, bio, is_discoverable, privacy_liked, privacy_watchlist, privacy_watched, created_at FROM users WHERE id = ?'
+      'SELECT id, username, plan, avatar, bio, is_discoverable, privacy_liked, privacy_watchlist, privacy_watched, created_at, watcher_title, watcher_level FROM users WHERE id = ?'
     ).get(targetId)
 
     if (!user || !user.is_discoverable) {
       return res.status(404).json({ error: 'User not found or not discoverable' })
     }
 
-    // Connection status
-    const isFollowing = !!db.prepare(
-      'SELECT 1 FROM social_connections WHERE follower_id = ? AND following_id = ?'
-    ).get(viewer, targetId)
-
-    const followerCount  = db.prepare('SELECT COUNT(*) as c FROM social_connections WHERE following_id = ?').get(targetId).c
-    const followingCount = db.prepare('SELECT COUNT(*) as c FROM social_connections WHERE follower_id = ?').get(targetId).c
+    // Mate count (accepted connections — bidirectional, count one side)
+    const mateCount = db.prepare('SELECT COUNT(*) as c FROM social_connections WHERE follower_id = ?').get(targetId).c
 
     // Library (respect privacy)
     const getList = (listType, privacyField) => {
@@ -312,16 +307,16 @@ router.get('/public/:userId', verifyToken, (req, res) => {
 
     res.json({
       user: {
-        id:        user.id,
-        username:  user.username,
-        plan:      user.plan,
-        avatar:    user.avatar || '🎬',
-        bio:       user.bio || '',
-        memberSince: user.created_at,
+        id:            user.id,
+        username:      user.username,
+        plan:          user.plan,
+        avatar:        user.avatar || '🎬',
+        bio:           user.bio || '',
+        memberSince:   user.created_at,
+        watcher_title: user.watcher_title || null,
+        watcher_level: user.watcher_level || 0,
       },
-      isFollowing,
-      followerCount,
-      followingCount,
+      mateCount,
       liked:     getList('liked',     'privacy_liked'),
       watchlist: getList('watchlist', 'privacy_watchlist'),
       watched:   getList('watched',   'privacy_watched'),
@@ -329,6 +324,63 @@ router.get('/public/:userId', verifyToken, (req, res) => {
   } catch (err) {
     console.error('Get public profile error:', err.message)
     res.status(500).json({ error: 'Failed to fetch profile' })
+  }
+})
+
+// ── POST /api/user/update-watcher-level ────────────────────────────────────
+// Called by frontend when user reaches interaction milestones
+router.post('/update-watcher-level', verifyToken, (req, res) => {
+  try {
+    const { interactionCount = 0 } = req.body
+    const userId = req.user.id
+
+    const levels = [
+      { min: 500, title: "Oracle's Favorite",      level: 6 },
+      { min: 200, title: 'Grand Auteur',            level: 5 },
+      { min: 100, title: "Director's Cut Devotee",  level: 4 },
+      { min: 50,  title: 'Reel Philosopher',        level: 3 },
+      { min: 25,  title: 'Scene Chaser',            level: 2 },
+      { min: 10,  title: 'Curious Cinephile',       level: 1 },
+      { min: 0,   title: 'Novice Watcher',          level: 0 },
+    ]
+
+    const matched = levels.find(l => interactionCount >= l.min)
+    const { title, level } = matched || levels[levels.length - 1]
+
+    // Get current level
+    const current = db.prepare('SELECT watcher_level FROM users WHERE id = ?').get(userId)
+    const currentLevel = current?.watcher_level ?? 0
+
+    // Update only if level increased
+    if (level > currentLevel) {
+      db.prepare('UPDATE users SET watcher_level = ?, watcher_title = ? WHERE id = ?')
+        .run(level, title, userId)
+
+      // Send notification
+      db.prepare(`
+        INSERT INTO notifications (user_id, type, content)
+        VALUES (?, 'watcher_level', ?)
+      `).run(userId, `🎬 You've earned a new Watcher Title: ${title}!`)
+    }
+
+    res.json({ ok: true, title, level })
+  } catch (err) {
+    console.error('Update watcher level error:', err.message)
+    res.status(500).json({ error: 'Failed to update watcher level' })
+  }
+})
+
+// ── GET /api/user/watcher-title ────────────────────────────────────────────
+router.get('/watcher-title', verifyToken, (req, res) => {
+  try {
+    const row = db.prepare('SELECT watcher_title, watcher_level FROM users WHERE id = ?').get(req.user.id)
+    res.json({
+      title: row?.watcher_title || 'Novice Watcher',
+      level: row?.watcher_level ?? 0,
+    })
+  } catch (err) {
+    console.error('Get watcher title error:', err.message)
+    res.status(500).json({ error: 'Failed to fetch watcher title' })
   }
 })
 

@@ -139,6 +139,71 @@ db.exec(`
   )
 `)
 
+// ── Task 4: Connection Requests ─────────────────────────────────────────────
+// Add status column to social_connections (safe — catches if already exists)
+try { db.exec(`ALTER TABLE social_connections ADD COLUMN status TEXT NOT NULL DEFAULT 'accepted'`) } catch { /* already exists */ }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS connection_requests (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_user_id INTEGER NOT NULL,
+    to_user_id   INTEGER NOT NULL,
+    status       TEXT    NOT NULL DEFAULT 'pending',
+    created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_user_id)   REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(from_user_id, to_user_id)
+  )
+`)
+
+// ── Task 5: Direct Messages ─────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_user_id INTEGER NOT NULL,
+    to_user_id   INTEGER NOT NULL,
+    content      TEXT    NOT NULL,
+    is_read      INTEGER NOT NULL DEFAULT 0,
+    created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_user_id)   REFERENCES users(id) ON DELETE CASCADE
+  )
+`)
+
+// ── Task 8: Watcher Titles ──────────────────────────────────────────────────
+try { db.exec(`ALTER TABLE users ADD COLUMN watcher_level INTEGER NOT NULL DEFAULT 0`) } catch { /* already exists */ }
+try { db.exec(`ALTER TABLE users ADD COLUMN watcher_title TEXT DEFAULT NULL`) } catch { /* already exists */ }
+
+// ── Task 9: Playlists ───────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS playlists (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    title       TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    tags        TEXT    NOT NULL DEFAULT '[]',
+    is_shared   INTEGER NOT NULL DEFAULT 0,
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS playlist_items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    playlist_id INTEGER NOT NULL,
+    tmdb_id     TEXT    NOT NULL,
+    media_type  TEXT    NOT NULL,
+    title       TEXT,
+    poster_path TEXT,
+    year        TEXT,
+    position    INTEGER NOT NULL DEFAULT 0,
+    added_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+    FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+    UNIQUE(playlist_id, tmdb_id, media_type)
+  )
+`)
+
 console.log('✅ Database initialized at', join(dataDir, 'tazama.db'))
 
 export default db
