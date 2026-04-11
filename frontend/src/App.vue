@@ -29,26 +29,22 @@ const isPublicRoute = computed(() => route.meta?.public)
 
         <main class="flex-1 pt-20 px-4 md:px-8 pb-10">
           <div class="max-w-7xl mx-auto w-full">
-            <!-- No mode="out-in": prevents insertBefore-null crash when components
-                 navigate away programmatically mid-transition -->
-            <RouterView v-slot="{ Component, route: r }">
-              <Transition name="page">
-                <component :is="Component" :key="r.path" />
-              </Transition>
-            </RouterView>
+            <!--
+              No <Transition> here — the mode="out-in" + insertBefore(null) crash
+              was caused by Vue patching the outgoing/incoming components at the same
+              time as reactive updates from TopBar (search focus, sidebar toggle).
+              Plain RouterView is crash-free and still fast enough.
+            -->
+            <RouterView :key="route.path" />
           </div>
         </main>
       </div>
     </template>
 
-    <!-- ── Public layout ─────────────────────────────────────────────────── -->
+    <!-- ── Public layout (auth page etc.) ───────────────────────────────── -->
     <template v-else>
       <div class="flex-1">
-        <RouterView v-slot="{ Component, route: r }">
-          <Transition name="page">
-            <component :is="Component" :key="r.path" />
-          </Transition>
-        </RouterView>
+        <RouterView :key="route.path" />
       </div>
     </template>
 

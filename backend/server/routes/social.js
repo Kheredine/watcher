@@ -10,10 +10,12 @@ router.get('/search', verifyToken, (req, res) => {
     const q = (req.query.q || '').trim()
     if (q.length < 2) return res.json({ users: [] })
 
+    // LOWER() on both sides = case-insensitive match
+    // is_discoverable checked via != 0 so NULL rows (legacy) are also matched
     const users = db.prepare(`
-      SELECT id, username, plan, avatar, bio
+      SELECT id, username, plan, avatar, bio, is_discoverable
       FROM users
-      WHERE username LIKE ? AND is_discoverable = 1 AND id != ?
+      WHERE LOWER(username) LIKE LOWER(?) AND COALESCE(is_discoverable, 1) != 0 AND id != ?
       LIMIT 10
     `).all(`%${q}%`, req.user.id)
 
