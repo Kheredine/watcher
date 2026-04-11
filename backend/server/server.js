@@ -11,9 +11,11 @@ import OpenAI from "openai"
 import './db.js'
 
 // Route modules
-import authRoutes from './routes/auth.js'
-import userRoutes from './routes/user.js'
-import chatRoutes from './routes/chat.js'
+import authRoutes     from './routes/auth.js'
+import userRoutes     from './routes/user.js'
+import chatRoutes     from './routes/chat.js'
+import socialRoutes   from './routes/social.js'
+import feedbackRoutes from './routes/feedback.js'
 
 const app = express()
 app.use(cors())
@@ -22,9 +24,11 @@ app.use(express.json())
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // ── Auth & User Routes ─────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes)
-app.use('/api/user', userRoutes)
-app.use('/api/chat', chatRoutes)
+app.use('/api/auth',     authRoutes)
+app.use('/api/user',     userRoutes)
+app.use('/api/chat',     chatRoutes)
+app.use('/api/social',   socialRoutes)
+app.use('/api/feedback', feedbackRoutes)
 
 // Time/content label maps for the prompt
 const TIME_LABELS = {

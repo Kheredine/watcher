@@ -15,8 +15,14 @@ const apiFetch = async (path, options = {}) => {
   if (token.value) headers['Authorization'] = `Bearer ${token.value}`
 
   const res = await fetch(`${API}${path}`, { ...options, headers })
-  const data = await res.json()
 
+  // Guard: if server returned HTML (e.g. 404 page) instead of JSON
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Server error (${res.status}) — please restart the backend server`)
+  }
+
+  const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Request failed')
   return data
 }
@@ -111,6 +117,14 @@ export const unlockPremium = async (answers) => {
   return data
 }
 
+// ── updateUser — refresh local user state after profile update ─────────────
+export const updateUser = (newData) => {
+  if (user.value) {
+    user.value = { ...user.value, ...newData }
+    applyTheme(user.value.plan)
+  }
+}
+
 // ── Composable export ──────────────────────────────────────────────────────
 export function useAuth() {
   return {
@@ -123,6 +137,7 @@ export function useAuth() {
     register,
     logout,
     unlockPremium,
+    updateUser,
     apiFetch,
   }
 }

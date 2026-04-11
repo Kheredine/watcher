@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import bcrypt from 'bcryptjs'
 import OpenAI from 'openai'
 import db from '../db.js'
 import { verifyToken, requirePremium } from '../middleware/auth.js'
@@ -19,7 +20,6 @@ router.get('/library', verifyToken, (req, res) => {
       'SELECT * FROM user_library WHERE user_id = ? ORDER BY added_at DESC'
     ).all(req.user.id)
 
-    // Group by list_type
     const library = { liked: [], watchlist: [], watched: [], history: [] }
     for (const row of rows) {
       const item = {
@@ -40,14 +40,12 @@ router.get('/library', verifyToken, (req, res) => {
 })
 
 // ── POST /api/user/library/sync ─────────────────────────────────────────────
-// Full sync: replaces all library data for this user
 router.post('/library/sync', verifyToken, (req, res) => {
   try {
     const { liked = [], watchlist = [], watched = [], history = [] } = req.body
     const userId = req.user.id
 
     const syncTransaction = db.transaction(() => {
-      // Clear existing
       db.prepare('DELETE FROM user_library WHERE user_id = ?').run(userId)
 
       const insert = db.prepare(`
@@ -131,6 +129,209 @@ router.post('/preferences/sync', verifyToken, (req, res) => {
   }
 })
 
+// ── PUT /api/user/profile ──────────────────────────────────────────────────
+// Update username, email, avatar, bio, privacy settings
+router.put('/profile', verifyToken, async (req, res) => {
+  try {
+    const {
+      username,
+      email,
+      avatar,
+      bio,
+      is_discoverable,
+      privacy_liked,
+      privacy_watchlist,
+      privacy_watched,
+    } = req.body
+    const userId = req.user.id
+
+    // Validate new email if changing
+    if (email && email !== req.user.email) {
+      if (!email.includes('@')) return res.status(400).json({ error: 'Invalid email address' })
+      const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email.toLowerCase(), userId)
+      if (existing) return res.status(409).json({ error: 'Email already in use' })
+    }
+
+    const current = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+    if (!current) return res.status(404).json({ error: 'User not found' })
+
+    db.prepare(`
+      UPDATE users SET
+        username          = ?,
+        email             = ?,
+        avatar            = ?,
+        bio               = ?,
+        is_discoverable   = ?,
+        privacy_liked     = ?,
+        privacy_watchlist = ?,
+        privacy_watched   = ?
+      WHERE id = ?
+    `).run(
+      (username || current.username).trim(),
+      (email || current.email).toLowerCase(),
+      avatar    ?? current.avatar    ?? '🎬',
+      bio       ?? current.bio       ?? '',
+      is_discoverable !== undefined ? (is_discoverable ? 1 : 0) : current.is_discoverable,
+      privacy_liked     || current.privacy_liked     || 'public',
+      privacy_watchlist || current.privacy_watchlist || 'public',
+      privacy_watched   || current.privacy_watched   || 'public',
+      userId
+    )
+
+    const updated = db.prepare('SELECT id, email, username, plan, avatar, bio, is_discoverable, privacy_liked, privacy_watchlist, privacy_watched FROM users WHERE id = ?').get(userId)
+    res.json({ ok: true, user: updated })
+  } catch (err) {
+    console.error('Update profile error:', err.message)
+    res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
+// ── PUT /api/user/password ─────────────────────────────────────────────────
+router.put('/password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    const userId = req.user.id
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both current and new password are required' })
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' })
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash)
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' })
+
+    const hash = await bcrypt.hash(newPassword, 12)
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, userId)
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Update password error:', err.message)
+    res.status(500).json({ error: 'Failed to update password' })
+  }
+})
+
+// ── GET /api/user/site-settings ────────────────────────────────────────────
+router.get('/site-settings', verifyToken, (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM user_site_settings WHERE user_id = ?').get(req.user.id)
+    if (!row) {
+      return res.json({
+        settings: {
+          favActors:      [],
+          excludedTags:   [],
+          nicheBalance:   50,
+          trailerAutoplay: 'click',
+        }
+      })
+    }
+    res.json({
+      settings: {
+        favActors:       JSON.parse(row.fav_actors    || '[]'),
+        excludedTags:    JSON.parse(row.excluded_tags  || '[]'),
+        nicheBalance:    row.niche_balance,
+        trailerAutoplay: row.trailer_autoplay,
+      }
+    })
+  } catch (err) {
+    console.error('Get site settings error:', err.message)
+    res.status(500).json({ error: 'Failed to fetch site settings' })
+  }
+})
+
+// ── PUT /api/user/site-settings ────────────────────────────────────────────
+router.put('/site-settings', verifyToken, (req, res) => {
+  try {
+    const {
+      favActors      = [],
+      excludedTags   = [],
+      nicheBalance   = 50,
+      trailerAutoplay = 'click',
+    } = req.body
+
+    db.prepare(`
+      INSERT INTO user_site_settings (user_id, fav_actors, excluded_tags, niche_balance, trailer_autoplay, updated_at)
+      VALUES (?, ?, ?, ?, ?, unixepoch())
+      ON CONFLICT(user_id) DO UPDATE SET
+        fav_actors       = excluded.fav_actors,
+        excluded_tags    = excluded.excluded_tags,
+        niche_balance    = excluded.niche_balance,
+        trailer_autoplay = excluded.trailer_autoplay,
+        updated_at       = excluded.updated_at
+    `).run(
+      req.user.id,
+      JSON.stringify(favActors),
+      JSON.stringify(excludedTags),
+      nicheBalance,
+      trailerAutoplay
+    )
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Save site settings error:', err.message)
+    res.status(500).json({ error: 'Failed to save site settings' })
+  }
+})
+
+// ── GET /api/user/public/:userId ───────────────────────────────────────────
+// Public profile (used by user search/profile pages)
+router.get('/public/:userId', verifyToken, (req, res) => {
+  try {
+    const targetId = Number(req.params.userId)
+    const viewer   = req.user.id
+
+    const user = db.prepare(
+      'SELECT id, username, plan, avatar, bio, is_discoverable, privacy_liked, privacy_watchlist, privacy_watched, created_at FROM users WHERE id = ?'
+    ).get(targetId)
+
+    if (!user || !user.is_discoverable) {
+      return res.status(404).json({ error: 'User not found or not discoverable' })
+    }
+
+    // Connection status
+    const isFollowing = !!db.prepare(
+      'SELECT 1 FROM social_connections WHERE follower_id = ? AND following_id = ?'
+    ).get(viewer, targetId)
+
+    const followerCount  = db.prepare('SELECT COUNT(*) as c FROM social_connections WHERE following_id = ?').get(targetId).c
+    const followingCount = db.prepare('SELECT COUNT(*) as c FROM social_connections WHERE follower_id = ?').get(targetId).c
+
+    // Library (respect privacy)
+    const getList = (listType, privacyField) => {
+      if (viewer === targetId || user[privacyField] === 'public') {
+        return db.prepare(
+          'SELECT tmdb_id as id, media_type as type, title, poster_path as poster, year FROM user_library WHERE user_id = ? AND list_type = ? ORDER BY added_at DESC LIMIT 20'
+        ).all(targetId, listType)
+      }
+      return null // private
+    }
+
+    res.json({
+      user: {
+        id:        user.id,
+        username:  user.username,
+        plan:      user.plan,
+        avatar:    user.avatar || '🎬',
+        bio:       user.bio || '',
+        memberSince: user.created_at,
+      },
+      isFollowing,
+      followerCount,
+      followingCount,
+      liked:     getList('liked',     'privacy_liked'),
+      watchlist: getList('watchlist', 'privacy_watchlist'),
+      watched:   getList('watched',   'privacy_watched'),
+    })
+  } catch (err) {
+    console.error('Get public profile error:', err.message)
+    res.status(500).json({ error: 'Failed to fetch profile' })
+  }
+})
+
 // ── POST /api/user/generate-title ──────────────────────────────────────────
 // Premium only — generates a funny, insightful watcher personality title
 router.post('/generate-title', verifyToken, requirePremium, async (req, res) => {
@@ -145,7 +346,6 @@ router.post('/generate-title', verifyToken, requirePremium, async (req, res) => 
       language      = 'en',
     } = req.body
 
-    // Determine dominant viewing time
     const hourCounts = {}
     sessionMoods.forEach(s => { hourCounts[s.hour] = (hourCounts[s.hour] || 0) + 1 })
     const dominantHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0]

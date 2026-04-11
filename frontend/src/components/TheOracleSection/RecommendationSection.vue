@@ -186,49 +186,52 @@ onMounted(() => {
             <p v-if="rec.reason" class="text-white/65 text-sm leading-relaxed mt-1">{{ rec.reason }}</p>
           </div>
 
-          <!-- Action bar -->
-          <div class="flex border-t divide-x" style="border-color:rgba(255,255,255,0.07); divide-color:rgba(255,255,255,0.07)" @click.stop>
+          <!-- Action bar — 2×2 on mobile, 4-cols on sm+ -->
+          <div
+            class="grid grid-cols-2 sm:grid-cols-4 border-t"
+            style="border-color:rgba(255,255,255,0.07);"
+            @click.stop
+          >
             <!-- Like -->
             <button
-              class="flex-1 py-3 flex items-center justify-center gap-1.5 text-xs font-medium transition"
+              class="action-btn border-r border-b sm:border-b-0"
+              style="border-color:rgba(255,255,255,0.07);"
               :class="isLiked(makeItem(rec)) ? 'text-red-400 bg-red-500/10' : 'text-white/40 hover:text-red-400 hover:bg-red-500/8'"
               @click="handleLike(rec)"
-              :title="t.like"
             >
               <i class="fa-solid fa-heart text-xs"></i>
-              <span class="hidden sm:inline">{{ isLiked(makeItem(rec)) ? t.liked : t.like }}</span>
+              <span>{{ isLiked(makeItem(rec)) ? t.liked : t.like }}</span>
             </button>
 
             <!-- Watchlist -->
             <button
-              class="flex-1 py-3 flex items-center justify-center gap-1.5 text-xs font-medium transition"
+              class="action-btn border-b sm:border-b-0 sm:border-r"
+              style="border-color:rgba(255,255,255,0.07);"
               :class="isInWatchlist(makeItem(rec)) ? 'text-blue-400 bg-blue-500/10' : 'text-white/40 hover:text-blue-400 hover:bg-blue-500/8'"
               @click="toggleWatchlist(makeItem(rec))"
-              :title="t.addWatchlist"
             >
               <i class="fa-solid fa-bookmark text-xs"></i>
-              <span class="hidden sm:inline">{{ isInWatchlist(makeItem(rec)) ? t.inWatchlist : t.addWatchlist }}</span>
+              <span>{{ isInWatchlist(makeItem(rec)) ? t.inWatchlist : t.addWatchlist }}</span>
             </button>
 
             <!-- Watched -->
             <button
-              class="flex-1 py-3 flex items-center justify-center gap-1.5 text-xs font-medium transition"
+              class="action-btn border-r"
+              style="border-color:rgba(255,255,255,0.07);"
               :class="isWatched(makeItem(rec)) ? 'text-green-400 bg-green-500/10' : 'text-white/40 hover:text-green-400 hover:bg-green-500/8'"
               @click="toggleWatched(makeItem(rec))"
-              :title="t.markWatched"
             >
               <i class="fa-solid fa-check text-xs"></i>
-              <span class="hidden sm:inline">{{ isWatched(makeItem(rec)) ? t.alreadyWatched : t.markWatched }}</span>
+              <span>{{ isWatched(makeItem(rec)) ? t.alreadyWatched : t.markWatched }}</span>
             </button>
 
-            <!-- Dislike -->
+            <!-- Not for me -->
             <button
-              class="flex-1 py-3 flex items-center justify-center gap-1.5 text-xs font-medium transition text-white/30 hover:text-orange-400 hover:bg-orange-500/8"
+              class="action-btn text-white/30 hover:text-orange-400 hover:bg-orange-500/8"
               @click="handleDislike(rec)"
-              :title="lang === 'fr' ? 'Ne pas recommander' : 'Not for me'"
             >
               <i class="fa-solid fa-thumbs-down text-xs"></i>
-              <span class="hidden sm:inline">{{ lang === 'fr' ? 'Pas pour moi' : 'Not for me' }}</span>
+              <span>{{ t.notForMe }}</span>
             </button>
           </div>
         </div>
@@ -249,3 +252,21 @@ onMounted(() => {
 
   </div>
 </template>
+
+<style scoped>
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  background: none;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+}
+</style>

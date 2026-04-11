@@ -1,21 +1,14 @@
 <script setup>
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
-import { useRouter } from 'vue-router'
 import TazamaLogo from '@/components/TazamaLogo.vue'
 
 defineProps({ open: Boolean })
 defineEmits(['close'])
 
 const { t } = useI18n()
-const { user, isPremium, logout } = useAuth()
-const router = useRouter()
-
-const handleLogout = async () => {
-  await logout()
-  router.push('/auth')
-}
+const { isPremium } = useAuth()
 </script>
 
 <template>
@@ -97,20 +90,21 @@ const handleLogout = async () => {
       <div class="mt-auto flex flex-col gap-0.5 pb-5">
         <div class="h-px bg-white/6 mb-2 mx-1"></div>
 
-        <RouterLink to="/settings" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
+        <!-- Site settings (gear icon) -->
+        <RouterLink to="/site-settings" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
           <i class="fa-solid fa-gear text-base w-5 text-center"></i>
           <span>{{ t.navSettings }}</span>
+        </RouterLink>
+
+        <RouterLink to="/notifications" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
+          <i class="fa-solid fa-bell text-base w-5 text-center"></i>
+          <span>{{ t.navNotifications }}</span>
         </RouterLink>
 
         <RouterLink to="/help" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
           <i class="fa-solid fa-circle-question text-base w-5 text-center"></i>
           <span>{{ t.navHelp }}</span>
         </RouterLink>
-
-        <button class="sidebar-link sidebar-link--logout w-full text-left" @click="handleLogout">
-          <i class="fa-solid fa-right-from-bracket text-base w-5 text-center"></i>
-          <span>Sign Out</span>
-        </button>
       </div>
     </nav>
   </aside>
@@ -148,11 +142,5 @@ const handleLogout = async () => {
 .sidebar-link--locked:hover {
   background: rgba(255,255,255,0.03);
   color: rgba(255,255,255,0.35);
-}
-
-.sidebar-link--logout { color: rgba(248,113,113,0.55); }
-.sidebar-link--logout:hover {
-  background: rgba(239,68,68,0.10);
-  color: rgba(248,113,113,0.85);
 }
 </style>

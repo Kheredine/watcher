@@ -7,14 +7,17 @@ const routes = [
   { path: '/auth', name: 'auth', component: () => import('@/views/AuthView.vue'), meta: { public: true } },
 
   // ── Standard ─────────────────────────────────────────────────────────────
-  { path: '/',          name: 'oracle',   component: TheOracleView },
-  { path: '/discover',  name: 'discover', component: () => import('@/views/DiscoverView.vue') },
-  { path: '/library',   name: 'library',  component: () => import('@/views/LibraryView.vue') },
-  { path: '/social',    name: 'social',   component: () => import('@/views/SocialView.vue') },
-  { path: '/settings',  name: 'settings', component: () => import('@/views/SettingsView.vue') },
-  { path: '/help',      name: 'help',     component: () => import('@/views/HelpView.vue') },
-  { path: '/plan',      name: 'plan',     component: () => import('@/views/PlanView.vue') },
-  { path: '/detail/:type/:id', name: 'detail', component: () => import('@/views/DetailView.vue') },
+  { path: '/',                     name: 'oracle',        component: TheOracleView },
+  { path: '/discover',             name: 'discover',      component: () => import('@/views/DiscoverView.vue') },
+  { path: '/library',              name: 'library',       component: () => import('@/views/LibraryView.vue') },
+  { path: '/social',               name: 'social',        component: () => import('@/views/SocialView.vue') },
+  { path: '/settings',             name: 'settings',      component: () => import('@/views/SettingsView.vue') },
+  { path: '/site-settings',        name: 'site-settings', component: () => import('@/views/SiteSettingsView.vue') },
+  { path: '/help',                 name: 'help',          component: () => import('@/views/HelpView.vue') },
+  { path: '/plan',                 name: 'plan',          component: () => import('@/views/PlanView.vue') },
+  { path: '/notifications',        name: 'notifications', component: () => import('@/views/NotificationsView.vue') },
+  { path: '/profile/:id',          name: 'user-profile',  component: () => import('@/views/UserProfileView.vue') },
+  { path: '/detail/:type/:id',     name: 'detail',        component: () => import('@/views/DetailView.vue') },
 
   // ── Premium ───────────────────────────────────────────────────────────────
   {
