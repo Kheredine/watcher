@@ -3,7 +3,6 @@ import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
-import TazamaLogo from '@/components/TazamaLogo.vue'
 
 defineEmits(['toggle-sidebar'])
 
@@ -15,71 +14,113 @@ const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const IMG_BASE  = 'https://image.tmdb.org/t/p/w92'
 
-// ── Scroll shadow ────────────────────────────────────────────────────────────
+// ── Scroll shadow ─────────────────────────────────────────────────────────────
 const scrolled = ref(false)
 const handleScroll = () => { scrolled.value = window.scrollY > 20 }
 onMounted(() => window.addEventListener('scroll', handleScroll))
 onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 
-// ── Search ──────────────────────────────────────────────────────────────────
+// ── Search state ──────────────────────────────────────────────────────────────
 const query        = ref('')
-const searchOpen   = ref(false)
 const searchFocus  = ref(false)
+const searchMode   = ref('all')  // 'all' | 'titles' | 'people'
 const movieResults = ref([])
 const userResults  = ref([])
 const searching    = ref(false)
-let   debounce     = null
+let   debounceTimer = null
+let   isMounted     = true
 
-const showDropdown = computed(() => searchFocus.value && query.value.trim().length >= 2)
+const showDropdown = computed(() =>
+  searchFocus.value && query.value.trim().length >= 2
+)
+
+const filteredMovies = computed(() =>
+  searchMode.value === 'people' ? [] : movieResults.value
+)
+const filteredUsers = computed(() =>
+  searchMode.value === 'titles' ? [] : userResults.value
+)
 
 watch(query, (q) => {
-  clearTimeout(debounce)
+  clearTimeout(debounceTimer)
   if (q.trim().length < 2) {
     movieResults.value = []
     userResults.value  = []
     return
   }
-  debounce = setTimeout(() => runSearch(q.trim()), 350)
+  debounceTimer = setTimeout(() => runSearch(q.trim()), 350)
+})
+
+// Re-run search when mode changes (only if query already typed)
+watch(searchMode, () => {
+  if (query.value.trim().length >= 2) runSearch(query.value.trim())
 })
 
 const runSearch = async (q) => {
+  if (!isMounted) return
   searching.value = true
   try {
-    // Run TMDB multi-search + user search in parallel
-    const [tmdbRes, userRes] = await Promise.all([
-      fetch(`${TMDB_BASE}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`),
-      apiFetch(`/api/social/search?q=${encodeURIComponent(q)}`).catch(() => ({ users: [] })),
-    ])
-    const tmdbData = await tmdbRes.json()
+    const promises = []
 
-    movieResults.value = (tmdbData.results || [])
-      .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
-      .slice(0, 5)
-      .map(r => ({
-        id:     r.id,
-        type:   r.media_type,
-        title:  r.title || r.name,
-        year:   (r.release_date || r.first_air_date || '').split('-')[0],
-        poster: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
-      }))
+    if (searchMode.value !== 'people') {
+      promises.push(
+        fetch(`${TMDB_BASE}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`)
+          .then(r => r.json())
+          .catch(() => ({ results: [] }))
+      )
+    } else {
+      promises.push(Promise.resolve(null))
+    }
 
-    userResults.value = userRes.users || []
+    if (searchMode.value !== 'titles') {
+      promises.push(
+        apiFetch(`/api/social/search?q=${encodeURIComponent(q)}`).catch(() => ({ users: [] }))
+      )
+    } else {
+      promises.push(Promise.resolve(null))
+    }
+
+    const [tmdbData, userRes] = await Promise.all(promises)
+
+    if (!isMounted) return
+
+    if (tmdbData) {
+      movieResults.value = (tmdbData.results || [])
+        .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
+        .slice(0, 6)
+        .map(r => ({
+          id:     r.id,
+          type:   r.media_type,
+          title:  r.title || r.name,
+          year:   (r.release_date || r.first_air_date || '').split('-')[0],
+          poster: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
+        }))
+    } else {
+      movieResults.value = []
+    }
+
+    userResults.value = userRes ? (userRes.users || []) : []
   } catch {
     // silently fail
   } finally {
-    searching.value = false
+    if (isMounted) searching.value = false
   }
 }
 
-const goToTitle = (item) => {
-  query.value   = ''
+const closeSearch = () => {
+  query.value       = ''
   searchFocus.value = false
+  movieResults.value = []
+  userResults.value  = []
+}
+
+const goToTitle = (item) => {
+  closeSearch()
   router.push({ name: 'detail', params: { type: item.type, id: item.id } })
 }
 
 const goToUser = (u) => {
-  query.value   = ''
-  searchFocus.value = false
+  closeSearch()
   router.push({ name: 'user-profile', params: { id: u.id } })
 }
 
@@ -91,23 +132,38 @@ const handleClickOutside = (e) => {
   }
 }
 onMounted(() => document.addEventListener('mousedown', handleClickOutside))
-onUnmounted(() => document.removeEventListener('mousedown', handleClickOutside))
+onUnmounted(() => {
+  isMounted = false
+  document.removeEventListener('mousedown', handleClickOutside)
+  clearTimeout(debounceTimer)
+})
 
-// ── Notification badge ───────────────────────────────────────────────────────
+// ── Notification unread count ─────────────────────────────────────────────────
 const unreadCount = ref(0)
+let unreadTimer   = null
+
 const loadUnread = async () => {
+  if (!isMounted) return
   try {
     const data = await apiFetch('/api/social/unread-count')
-    unreadCount.value = data.count || 0
+    if (isMounted) unreadCount.value = data.count || 0
   } catch { /* ignore */ }
 }
+
 onMounted(() => {
-  if (user.value) loadUnread()
+  if (user.value) {
+    loadUnread()
+    unreadTimer = setInterval(() => { if (isMounted && user.value) loadUnread() }, 60000)
+  }
 })
-// Refresh every 60s
-let unreadInterval = null
-onMounted(() => { unreadInterval = setInterval(() => { if (user.value) loadUnread() }, 60000) })
-onUnmounted(() => clearInterval(unreadInterval))
+onUnmounted(() => clearInterval(unreadTimer))
+
+// ── Search mode labels ────────────────────────────────────────────────────────
+const MODE_LABELS = computed(() => ({
+  all:    lang.value === 'fr' ? 'Tout'     : 'All',
+  titles: lang.value === 'fr' ? 'Titres'   : 'Titles',
+  people: lang.value === 'fr' ? 'Personnes': 'People',
+}))
 </script>
 
 <template>
@@ -118,6 +174,7 @@ onUnmounted(() => clearInterval(unreadInterval))
   <!-- Left: mobile hamburger + language toggle -->
   <div class="flex items-center gap-2 flex-shrink-0">
     <button
+      type="button"
       class="md:hidden flex items-center justify-center w-11 h-11 rounded-xl bg-[#7C3AED]/20 text-white/70 hover:text-white transition"
       @click="$emit('toggle-sidebar')"
     >
@@ -125,6 +182,7 @@ onUnmounted(() => clearInterval(unreadInterval))
     </button>
 
     <button
+      type="button"
       class="flex items-center gap-1.5 px-3 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md text-white/70 hover:text-white text-sm font-semibold transition"
       @click="toggleLang"
       :title="lang === 'en' ? 'Passer en français' : 'Switch to English'"
@@ -134,74 +192,132 @@ onUnmounted(() => clearInterval(unreadInterval))
     </button>
   </div>
 
-  <!-- Center: search bar with dropdown -->
+  <!-- Center: search bar -->
   <div ref="searchRef" class="flex-1 flex justify-center relative">
     <div class="w-full max-w-2xl">
-      <!-- Input -->
-      <div class="flex items-center gap-3 px-5 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md shadow-inner">
-        <i v-if="!searching" class="fa-solid fa-magnifying-glass text-white/40 text-base flex-shrink-0"></i>
-        <i v-else class="fa-solid fa-circle-notch fa-spin text-white/40 text-sm flex-shrink-0"></i>
+
+      <!-- Search input row -->
+      <div class="flex items-center gap-2 px-4 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md">
+
+        <!-- Search icon / spinner -->
+        <i v-if="!searching" class="fa-solid fa-magnifying-glass text-white/40 text-sm flex-shrink-0"></i>
+        <i v-else class="fa-solid fa-circle-notch fa-spin text-white/40 text-xs flex-shrink-0"></i>
+
+        <!-- Filter mode pills — shown once the search is focused -->
+        <div v-if="searchFocus" class="flex items-center gap-1 flex-shrink-0">
+          <button
+            v-for="mode in ['all','titles','people']"
+            :key="mode"
+            type="button"
+            class="px-2 py-0.5 rounded-md text-[10px] font-semibold transition border"
+            :class="searchMode === mode
+              ? 'bg-purple-600/70 text-white border-purple-500/60'
+              : 'text-white/35 border-white/10 hover:text-white/60 hover:border-white/20'"
+            @click.stop="searchMode = mode"
+          >
+            {{ MODE_LABELS[mode] }}
+          </button>
+          <div class="w-px h-4 bg-white/15 mx-1"></div>
+        </div>
+
+        <!-- Text input — autocomplete OFF prevents browser from injecting saved emails -->
         <input
           v-model="query"
-          type="text"
-          :placeholder="t.searchPlaceholder"
-          class="bg-transparent focus:outline-none w-full text-base text-white/80 placeholder:text-white/30"
+          type="search"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          name="tazama-search"
+          :placeholder="searchFocus
+            ? (searchMode === 'people'
+                ? (lang === 'fr' ? 'Chercher un utilisateur…' : 'Search a user…')
+                : searchMode === 'titles'
+                  ? (lang === 'fr' ? 'Chercher un film, une série…' : 'Search a title…')
+                  : t.searchPlaceholder)
+            : t.searchPlaceholder"
+          class="bg-transparent focus:outline-none w-full text-sm text-white/80 placeholder:text-white/30"
           @focus="searchFocus = true"
-          @keydown.escape="searchFocus = false; query = ''"
+          @keydown.escape="closeSearch"
         >
+
+        <!-- Clear button -->
         <button
           v-if="query"
+          type="button"
           class="text-white/30 hover:text-white/70 transition text-sm flex-shrink-0"
-          @click="query = ''; movieResults = []; userResults = []"
+          @click="closeSearch"
         >
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <!-- Dropdown -->
-      <Transition name="dropdown">
-        <div
-          v-if="showDropdown"
-          class="absolute top-full mt-2 left-0 right-0 rounded-2xl border border-white/10 overflow-hidden shadow-2xl z-50"
-          style="background: #13111f; max-height: 420px; overflow-y: auto;"
-        >
-          <!-- No results -->
-          <div v-if="!searching && !movieResults.length && !userResults.length"
-               class="p-5 text-center text-white/35 text-sm">
-            {{ t.searchNoResults }}
-          </div>
+      <!-- Dropdown — plain v-if, no <Transition> (avoids insertBefore null crash) -->
+      <div
+        v-if="showDropdown"
+        class="absolute top-full mt-2 left-0 right-0 rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden"
+        style="background: #13111f; max-height: 440px; overflow-y: auto;"
+      >
+        <!-- Searching indicator -->
+        <div v-if="searching" class="p-4 flex items-center justify-center gap-2 text-white/35 text-sm">
+          <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
+          {{ lang === 'fr' ? 'Recherche…' : 'Searching…' }}
+        </div>
 
-          <!-- Movie / Series results -->
-          <div v-if="movieResults.length">
-            <div class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-white/30">
-              {{ t.searchMovies }}
+        <!-- No results -->
+        <div
+          v-else-if="!filteredMovies.length && !filteredUsers.length"
+          class="p-6 text-center text-white/30 text-sm"
+        >
+          <i class="fa-solid fa-face-frown text-lg mb-2 block opacity-40"></i>
+          {{ t.searchNoResults }}
+        </div>
+
+        <template v-else>
+          <!-- Titles section -->
+          <div v-if="filteredMovies.length">
+            <div class="px-4 pt-3 pb-1.5 flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">{{ t.searchMovies }}</span>
+              <span class="text-[10px] text-white/20">{{ filteredMovies.length }}</span>
             </div>
             <button
-              v-for="item in movieResults"
+              v-for="item in filteredMovies"
               :key="`m-${item.type}-${item.id}`"
+              type="button"
               class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
               @click="goToTitle(item)"
             >
-              <div class="w-9 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+              <div class="w-9 h-[52px] rounded-lg overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center">
                 <img v-if="item.poster" :src="item.poster" :alt="item.title" class="w-full h-full object-cover" />
-                <i v-else class="fa-solid fa-film text-white/20 text-xs flex items-center justify-center w-full h-full"></i>
+                <i v-else class="fa-solid fa-film text-white/20 text-xs"></i>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-medium truncate">{{ item.title }}</p>
-                <p class="text-white/35 text-xs">{{ item.year }} · {{ item.type === 'movie' ? 'Film' : 'Series' }}</p>
+                <p class="text-white/35 text-xs mt-0.5">
+                  {{ item.year }}
+                  <span class="mx-1 text-white/20">·</span>
+                  <span :class="item.type === 'movie' ? 'text-purple-400/70' : 'text-blue-400/70'">
+                    {{ item.type === 'movie' ? (lang === 'fr' ? 'Film' : 'Movie') : (lang === 'fr' ? 'Série' : 'Series') }}
+                  </span>
+                </p>
               </div>
-              <i class="fa-solid fa-chevron-right text-xs text-white/20"></i>
+              <i class="fa-solid fa-arrow-right text-[10px] text-white/20"></i>
             </button>
           </div>
 
-          <!-- User results -->
-          <div v-if="userResults.length">
-            <div class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-white/30">
-              {{ t.searchUsers }}
+          <!-- Divider between sections -->
+          <div v-if="filteredMovies.length && filteredUsers.length" class="h-px bg-white/6 mx-4"></div>
+
+          <!-- People section -->
+          <div v-if="filteredUsers.length">
+            <div class="px-4 pt-3 pb-1.5 flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">{{ t.searchUsers }}</span>
+              <span class="text-[10px] text-white/20">{{ filteredUsers.length }}</span>
             </div>
             <button
-              v-for="u in userResults"
+              v-for="u in filteredUsers"
               :key="`u-${u.id}`"
+              type="button"
               class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
               @click="goToUser(u)"
             >
@@ -215,20 +331,29 @@ onUnmounted(() => clearInterval(unreadInterval))
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-medium truncate">{{ u.username }}</p>
-                <p class="text-white/35 text-xs">{{ u.plan === 'premium' ? '✦ Premium' : 'Standard' }}</p>
+                <p class="text-white/35 text-xs mt-0.5">
+                  {{ u.plan === 'premium' ? '✦ Premium' : 'Standard' }}
+                  <span v-if="u.bio" class="mx-1 text-white/20">·</span>
+                  <span v-if="u.bio" class="text-white/30 truncate">{{ u.bio.slice(0, 30) }}</span>
+                </p>
               </div>
-              <i class="fa-solid fa-chevron-right text-xs text-white/20"></i>
+              <i class="fa-solid fa-arrow-right text-[10px] text-white/20"></i>
             </button>
           </div>
-        </div>
-      </Transition>
+
+          <div class="h-2"></div>
+        </template>
+      </div>
+
     </div>
   </div>
 
   <!-- Right: notification bell + user profile pill -->
   <div class="flex items-center gap-2 flex-shrink-0">
+
     <!-- Notification bell -->
     <button
+      type="button"
       class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-[#7C3AED]/20 text-white/60 hover:text-white transition"
       @click="router.push('/notifications')"
       title="Notifications"
@@ -236,26 +361,28 @@ onUnmounted(() => clearInterval(unreadInterval))
       <i class="fa-solid fa-bell text-base"></i>
       <span
         v-if="unreadCount > 0"
-        class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
+        class="absolute top-1 right-1 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-1"
         style="background: #ef4444; color: white;"
       >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
     </button>
 
     <!-- User profile pill → opens /settings -->
-    <div
+    <button
+      type="button"
       class="flex items-center gap-2.5 px-3.5 h-11 rounded-xl backdrop-blur-md shadow-inner cursor-pointer transition-all hover:opacity-85 hover:scale-[0.98]"
-      :class="isPremium ? 'bg-amber-600/18' : 'bg-[#7C3AED]/20'"
+      :class="isPremium ? 'bg-amber-600/20' : 'bg-[#7C3AED]/20'"
       @click="router.push('/settings')"
       title="My Profile"
     >
       <!-- Avatar -->
       <div
-        class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+        class="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
         :style="isPremium
           ? 'background: linear-gradient(135deg,#d97706,#f59e0b);'
           : 'background: rgba(124,58,237,0.55);'"
       >
-        {{ user?.avatar || user?.username?.[0]?.toUpperCase() || '?' }}
+        <span v-if="user?.avatar && user.avatar.length <= 2">{{ user.avatar }}</span>
+        <span v-else class="text-white">{{ user?.username?.[0]?.toUpperCase() || '?' }}</span>
       </div>
 
       <div class="hidden sm:flex flex-col leading-tight">
@@ -265,13 +392,9 @@ onUnmounted(() => clearInterval(unreadInterval))
         </span>
         <span v-else class="text-[10px] text-purple-400">Standard</span>
       </div>
-      <i class="fa-solid fa-chevron-right text-xs text-white/30"></i>
-    </div>
+      <i class="fa-solid fa-chevron-right text-xs text-white/30 hidden sm:block"></i>
+    </button>
+
   </div>
 </header>
 </template>
-
-<style scoped>
-.dropdown-enter-active, .dropdown-leave-active { transition: opacity 0.15s, transform 0.15s; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
-</style>

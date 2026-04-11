@@ -163,7 +163,8 @@ onMounted(() => { if (user.value) loadSocialStats() })
 // ── Logout / Reset ────────────────────────────────────────────────────────────
 const handleLogout = async () => {
   await logout()
-  router.push('/auth')
+  // replace() prevents going "back" to settings after logout
+  router.replace('/auth')
 }
 
 const confirmReset = ref(false)
@@ -226,6 +227,7 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
 
       <!-- Edit button -->
       <button
+        type="button"
         class="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition border"
         :class="editing
           ? 'bg-white/5 text-white/50 border-white/10'
@@ -278,6 +280,7 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
           <button
             v-for="av in AVATARS"
             :key="av"
+            type="button"
             class="w-10 h-10 rounded-xl text-xl flex items-center justify-center transition border"
             :class="editForm.avatar === av
               ? 'border-purple-500/60 bg-purple-500/20'
@@ -312,12 +315,21 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
           <p class="text-xs text-white/35 mt-0.5">{{ t.discoverabilityDesc }}</p>
         </div>
         <button
-          class="relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
-          :class="editForm.is_discoverable ? 'bg-purple-600' : 'bg-white/15'"
-          @click="editForm.is_discoverable = !editForm.is_discoverable"
+          type="button"
+          class="relative w-12 h-6 rounded-full flex-shrink-0 cursor-pointer"
+          style="transition: background 0.2s;"
+          :style="editForm.is_discoverable
+            ? 'background: #7c3aed;'
+            : 'background: rgba(255,255,255,0.15);'"
+          @click.stop="editForm.is_discoverable = !editForm.is_discoverable"
         >
-          <span class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
-                :class="editForm.is_discoverable ? 'translate-x-6' : 'translate-x-0.5'"></span>
+          <span
+            class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md"
+            style="transition: transform 0.2s ease;"
+            :style="editForm.is_discoverable
+              ? 'transform: translateX(1.5rem);'
+              : 'transform: translateX(0.125rem);'"
+          ></span>
         </button>
       </div>
 
@@ -341,6 +353,7 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
                 <button
                   v-for="opt in ['public','private']"
                   :key="opt"
+                  type="button"
                   class="px-3 py-1 rounded-lg text-xs font-medium transition"
                   :class="editForm[field.key] === opt
                     ? 'bg-purple-600/60 text-white'

@@ -91,14 +91,16 @@ router.post('/login', async (req, res) => {
 
 // ── GET /api/auth/me ────────────────────────────────────────────────────────
 router.get('/me', verifyToken, (req, res) => {
-  const user = db.prepare('SELECT id, email, username, plan FROM users WHERE id = ?').get(req.user.id)
+  const user = db.prepare(
+    'SELECT id, email, username, plan, avatar, bio, is_discoverable, privacy_liked, privacy_watchlist, privacy_watched, created_at FROM users WHERE id = ?'
+  ).get(req.user.id)
   if (!user) return res.status(404).json({ error: 'User not found' })
   res.json({ user })
 })
 
 // ── POST /api/auth/logout ───────────────────────────────────────────────────
-router.post('/logout', verifyToken, (req, res) => {
-  // JWT is stateless — client drops the token
+// No verifyToken — client just needs to call this; token is already being dropped client-side
+router.post('/logout', (req, res) => {
   res.json({ ok: true })
 })
 
