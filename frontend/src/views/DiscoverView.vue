@@ -14,14 +14,25 @@ const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const IMG_BASE  = 'https://image.tmdb.org/t/p/w342'
 
-// ── Data refs ─────────────────────────────────────────────────────────
-const personalized  = ref([])
-const trending      = ref([])
-const films         = ref([])
-const series        = ref([])
-const anime         = ref([])
-const tvShows       = ref([])
-const docs          = ref([])
+// ── Module-level cache — persists across navigation (back button) ─────
+const _personalized  = ref([])
+const _trending      = ref([])
+const _films         = ref([])
+const _series        = ref([])
+const _anime         = ref([])
+const _tvShows       = ref([])
+const _docs          = ref([])
+const _rowsLoaded    = ref(false)
+const _personalLoaded = ref(false)
+
+// Local refs pointing to cache
+const personalized  = _personalized
+const trending      = _trending
+const films         = _films
+const series        = _series
+const anime         = _anime
+const tvShows       = _tvShows
+const docs          = _docs
 
 const loadingPersonal = ref(false)
 
@@ -136,8 +147,18 @@ const itemTitle = (item) => item.title || item.name || ''
 const itemYear  = (item) => (item.release_date || item.first_air_date || '').split('-')[0]
 
 onMounted(() => {
-  fetchAllRows()
-  fetchPersonalized()
+  // Only fetch if data hasn't been loaded yet — prevents refetch on back navigation
+  if (!_rowsLoaded.value) {
+    fetchAllRows()
+    _rowsLoaded.value = true
+  }
+  if (!_personalLoaded.value && hasEnoughData.value) {
+    fetchPersonalized()
+    _personalLoaded.value = true
+  } else if (!_personalLoaded.value && !hasEnoughData.value) {
+    // Nothing to load, mark so we don't keep checking
+    loadingPersonal.value = false
+  }
 })
 </script>
 

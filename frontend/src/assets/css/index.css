@@ -9,21 +9,9 @@
   --plan-badge:    #7c3aed;
 }
 
-/* Premium (gold) */
-[data-plan="premium"] {
-  --accent:        #d97706;
-  --accent-light:  #f59e0b;
-  --accent-glow:   rgba(245, 158, 11, 0.5);
-  --accent-bg:     rgba(217, 119, 6, 0.15);
-  --accent-border: rgba(217, 119, 6, 0.35);
-  --plan-badge:    #d97706;
-}
-
-[data-plan="premium"] body {
-  background-image:
-    radial-gradient(1200px at 20% 10%, rgba(217,119,6,0.10), transparent),
-    radial-gradient(1000px at 80% 90%, rgba(180,83,9,0.08), transparent);
-}
+/* Premium — same purple palette as standard.
+   Only the profile pill in TopBar uses amber/gold styling (via isPremium in JS).
+   Keeping data-plan on <html> so JS can still read it, but no color override. */
 
 @import "tailwindcss";
 

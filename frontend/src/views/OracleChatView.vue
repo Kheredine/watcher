@@ -62,6 +62,40 @@ const onKeydown = (e) => {
     send()
   }
 }
+
+// ── Simple markdown renderer for structured Oracle responses ────────────────
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  let html = text
+    // Escape HTML first
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Horizontal rule
+    .replace(/^---$/gm, '<hr class="oracle-hr">')
+    // Bold italic
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Italic (not already replaced)
+    .replace(/\*((?!\s)[^*]+(?<!\s))\*/g, '<em>$1</em>')
+    // Code inline
+    .replace(/`([^`]+)`/g, '<code class="oracle-code">$1</code>')
+    // Numbered lists
+    .replace(/^(\d+)\.\s+(.+)$/gm, '<div class="oracle-list-num"><span class="oracle-num">$1.</span> $2</div>')
+    // Bullet lists
+    .replace(/^[-•]\s+(.+)$/gm, '<div class="oracle-list-item"><span class="oracle-bullet">·</span> $1</div>')
+    // Headings ##
+    .replace(/^##\s+(.+)$/gm, '<p class="oracle-h2">$1</p>')
+    // Headings #
+    .replace(/^#\s+(.+)$/gm, '<p class="oracle-h1">$1</p>')
+    // Double newline = paragraph break
+    .replace(/\n\n/g, '</p><p class="oracle-p">')
+    // Single newline = line break
+    .replace(/\n/g, '<br>')
+
+  return `<p class="oracle-p">${html}</p>`
+}
 </script>
 
 <template>
@@ -131,9 +165,9 @@ const onKeydown = (e) => {
                  style="background: rgba(217,119,6,0.15); border: 1px solid rgba(245,158,11,0.25);">
               <i class="fa-solid fa-eye text-xs text-amber-400"></i>
             </div>
-            <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm text-white/90 leading-relaxed"
-                 style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
-              {{ msg.content }}
+            <div class="oracle-message max-w-[82%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm text-white/90"
+                 style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);"
+                 v-html="renderMarkdown(msg.content)">
             </div>
           </div>
         </template>
@@ -187,3 +221,35 @@ const onKeydown = (e) => {
     </template>
   </div>
 </template>
+
+<style scoped>
+/* Oracle message markdown styles */
+:deep(.oracle-message) { line-height: 1.65; }
+:deep(.oracle-p) { margin: 0 0 8px 0; }
+:deep(.oracle-p:last-child) { margin-bottom: 0; }
+:deep(.oracle-h1) { font-size: 14px; font-weight: 700; color: #fff; margin: 10px 0 6px; }
+:deep(.oracle-h2) { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8); margin: 8px 0 4px; }
+:deep(.oracle-hr) {
+  border: none;
+  border-top: 1px solid rgba(245,158,11,0.2);
+  margin: 10px 0;
+}
+:deep(.oracle-list-item),
+:deep(.oracle-list-num) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 3px 0;
+}
+:deep(.oracle-bullet) { color: rgba(245,158,11,0.6); flex-shrink: 0; margin-top: 1px; }
+:deep(.oracle-num) { color: rgba(245,158,11,0.6); flex-shrink: 0; font-weight: 600; min-width: 18px; }
+:deep(.oracle-code) {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 12px;
+}
+:deep(strong) { color: #ffffff; font-weight: 600; }
+:deep(em) { color: rgba(255,255,255,0.75); font-style: italic; }
+</style>

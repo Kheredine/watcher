@@ -2,7 +2,6 @@
 import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/composables/useAuth'
-import TazamaLogo from '@/components/TazamaLogo.vue'
 
 const router = useRouter()
 
@@ -56,7 +55,7 @@ const submit = async () => {
       <!-- Brand -->
       <div class="flex flex-col items-center gap-3 mb-10">
         <div class="shadow-2xl shadow-purple-900/50 rounded-2xl">
-          <TazamaLogo :size="64" uid="auth" />
+          <img src="@/assets/images/logo_tazama.png" alt="Tazama Logo" class="w-40 h-40">
         </div>
         <h1 class="font-logo text-3xl font-bold text-white tracking-tight">Tazama</h1>
         <p class="text-white/40 text-sm">Your mood-based entertainment oracle</p>

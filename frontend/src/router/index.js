@@ -16,6 +16,7 @@ const routes = [
   { path: '/help',                 name: 'help',          component: () => import('@/views/HelpView.vue') },
   { path: '/plan',                 name: 'plan',          component: () => import('@/views/PlanView.vue') },
   { path: '/notifications',        name: 'notifications', component: () => import('@/views/NotificationsView.vue') },
+  { path: '/messages',             name: 'messages',      component: () => import('@/views/MessagesView.vue') },
   { path: '/profile/:id',          name: 'user-profile',  component: () => import('@/views/UserProfileView.vue') },
   { path: '/detail/:type/:id',     name: 'detail',        component: () => import('@/views/DetailView.vue') },
 

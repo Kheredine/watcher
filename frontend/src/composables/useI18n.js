@@ -13,6 +13,7 @@ const translations = {
     navSettings: 'Settings',
     navHelp: 'Help',
     navNotifications: 'Notifications',
+    navMessages: 'Messages',
     // Oracle
     oracleTitle: 'What do you want to feel right now?',
     oracleSubtitle: 'Tell the Oracle your mood — it will find something perfect for you.',
@@ -160,6 +161,7 @@ const translations = {
     navSettings: 'Paramètres',
     navHelp: 'Aide',
     navNotifications: 'Notifications',
+    navMessages: 'Messages',
     // Oracle
     oracleTitle: 'Que voulez-vous ressentir en ce moment ?',
     oracleSubtitle: "Dites à l'Oracle votre humeur — il trouvera quelque chose de parfait pour vous.",

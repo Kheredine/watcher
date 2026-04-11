@@ -2,7 +2,6 @@
 import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
-import TazamaLogo from '@/components/TazamaLogo.vue'
 
 defineProps({ open: Boolean })
 defineEmits(['close'])
@@ -20,7 +19,7 @@ const { isPremium } = useAuth()
     <!-- Brand -->
     <div class="px-6 pt-7 pb-5">
       <RouterLink to="/" class="flex items-center gap-3" @click="$emit('close')">
-        <TazamaLogo :size="38" uid="sb" />
+          <img src="/logo_tazama.png" alt="Tazama Logo" class="w-8 h-8">
         <span class="font-logo text-2xl font-bold text-white tracking-tight">Tazama</span>
       </RouterLink>
     </div>
@@ -96,9 +95,9 @@ const { isPremium } = useAuth()
           <span>{{ t.navSettings }}</span>
         </RouterLink>
 
-        <RouterLink to="/notifications" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
-          <i class="fa-solid fa-bell text-base w-5 text-center"></i>
-          <span>{{ t.navNotifications }}</span>
+        <RouterLink to="/messages" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">
+          <i class="fa-solid fa-comment-alt text-base w-5 text-center"></i>
+          <span>{{ t.navMessages }}</span>
         </RouterLink>
 
         <RouterLink to="/help" active-class="sidebar-active" class="sidebar-link" @click="$emit('close')">

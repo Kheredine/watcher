@@ -8,18 +8,22 @@ const { user, isPremium } = useAuth()
 const { t } = useI18n()
 
 const standardFeatures = [
-  { icon: 'fa-wand-magic-sparkles', label: 'Oracle Mood Recommendations' },
-  { icon: 'fa-compass',             label: 'Discover Page — Trending & Top 10s' },
-  { icon: 'fa-bookmark',            label: 'Personal Library (liked, watchlist, watched)' },
+  { icon: 'fa-wand-magic-sparkles', label: 'Oracle Mood Recommendations — AI picks based on your vibe' },
+  { icon: 'fa-compass',             label: 'Discover Page — Trending, Top Films, Series & Anime' },
+  { icon: 'fa-bookmark',            label: 'Personal Library (liked, watchlist, watched, history)' },
+  { icon: 'fa-list',                label: 'Playlists — create and share curated collections' },
+  { icon: 'fa-users',               label: 'Social — Reel Mates connections & messaging' },
   { icon: 'fa-globe',               label: 'EN / FR language support' },
   { icon: 'fa-cloud',               label: 'Cross-device sync via account' },
+  { icon: 'fa-magnifying-glass',    label: 'Search movies, series and other users' },
 ]
 
 const premiumFeatures = [
-  { icon: 'fa-comment-dots', label: 'Chat with Oracle — AI entertainment expert' },
-  { icon: 'fa-chart-bar',    label: 'Taste Analytics — your mood & genre profile' },
-  { icon: 'fa-bolt',         label: 'Priority Recommendations — deeper AI analysis' },
-  { icon: 'fa-crown',        label: 'Premium gold theme' },
+  { icon: 'fa-comment-dots', label: 'Oracle Chat — unlimited AI entertainment expert sessions' },
+  { icon: 'fa-chart-bar',    label: 'Taste Analytics — deep dive into your mood & genre profile' },
+  { icon: 'fa-scroll',       label: 'Watcher Title — your AI-generated cinephile persona' },
+  { icon: 'fa-sliders',      label: 'Privacy Controls — choose who sees your library' },
+  { icon: 'fa-eye-slash',    label: 'Discoverability toggle — appear or vanish from search' },
   { icon: 'fa-lock-open',    label: 'All Standard features included' },
 ]
 </script>
@@ -47,7 +51,12 @@ const premiumFeatures = [
             {{ !isPremium ? 'Current Plan' : 'Free' }}
           </span>
         </div>
-        <p class="text-white/40 text-sm mb-6">Everything you need to find the perfect watch.</p>
+        <!-- Pricing -->
+        <div class="flex items-baseline gap-2 mb-2">
+          <span class="text-3xl font-bold text-white">$0</span>
+          <span class="text-white/40 text-sm">/ forever</span>
+        </div>
+        <p class="text-purple-400/70 text-xs italic mb-4">Zero. Zilch. Nada. Free as in "we checked the price three times and it's still zero." 🤷</p>
 
         <ul class="flex flex-col gap-3 flex-1">
           <li v-for="f in standardFeatures" :key="f.label" class="feature-item">
@@ -79,7 +88,12 @@ const premiumFeatures = [
             {{ isPremium ? 'Active' : 'Unlock' }}
           </span>
         </div>
-        <p class="text-white/40 text-sm mb-6">The full Oracle experience — for those who know the answers.</p>
+        <!-- Pricing -->
+        <div class="flex items-baseline gap-2 mb-2">
+          <span class="text-3xl font-bold" style="color: #fbbf24;">3</span>
+          <span class="text-amber-400/70 text-sm">correct answers</span>
+        </div>
+        <p class="text-amber-400/60 text-xs italic mb-4">Not euros. Not dollars. Just your brain cells. Answer 3 of the Oracle's riddles correctly and transcend. 🎬</p>
 
         <ul class="flex flex-col gap-3 flex-1">
           <li v-for="f in premiumFeatures" :key="f.label" class="feature-item">

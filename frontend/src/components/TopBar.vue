@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter, useRoute } from 'vue-router'
@@ -26,27 +26,22 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 // ── Search state ──────────────────────────────────────────────────────────────
 const query        = ref('')
-const searchActive = ref(false)   // true when the bar is focused
-const searchMode   = ref('all')   // 'all' | 'titles' | 'people'
+const searchActive = ref(false)
 const movieResults = ref([])
 const userResults  = ref([])
 const searching    = ref(false)
-const inputRef     = ref(null)
 const wrapperRef   = ref(null)
 
-// v-show instead of v-if — no DOM insertion so no insertBefore crash
+// v-show on the dropdown (never removed from DOM = no insertBefore/nextSibling crash)
 const dropdownVisible = computed(
   () => searchActive.value && query.value.trim().length >= 2
 )
 
-const filteredMovies = computed(() =>
-  searchMode.value === 'people' ? [] : movieResults.value
-)
-const filteredUsers = computed(() =>
-  searchMode.value === 'titles' ? [] : userResults.value
-)
-
-const hasResults = computed(() => filteredMovies.value.length || filteredUsers.value.length)
+const hasMovies  = computed(() => movieResults.value.length > 0)
+const hasUsers   = computed(() => userResults.value.length > 0)
+const hasAny     = computed(() => hasMovies.value || hasUsers.value)
+const showEmpty  = computed(() => !searching.value && !hasAny.value && dropdownVisible.value)
+const showSearch = computed(() => searching.value && dropdownVisible.value)
 
 // ── Debounced search ──────────────────────────────────────────────────────────
 let debounceTimer = null
@@ -61,51 +56,34 @@ watch(query, (q) => {
   debounceTimer = setTimeout(() => runSearch(q.trim()), 380)
 })
 
-watch(searchMode, () => {
-  if (query.value.trim().length >= 2) runSearch(query.value.trim())
-})
-
 const runSearch = async (q) => {
   if (!isMounted) return
   searching.value = true
   try {
-    const doTitles  = searchMode.value !== 'people'
-    const doPeople  = searchMode.value !== 'titles'
-
     const [tmdbData, userRes] = await Promise.all([
-      doTitles
-        ? fetch(`${TMDB_BASE}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`)
-            .then(r => r.json()).catch(() => ({ results: [] }))
-        : Promise.resolve(null),
-      doPeople
-        ? apiFetch(`/api/social/search?q=${encodeURIComponent(q)}`).catch(() => ({ users: [] }))
-        : Promise.resolve(null),
+      fetch(`${TMDB_BASE}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`)
+        .then(r => r.json()).catch(() => ({ results: [] })),
+      apiFetch(`/api/social/search?q=${encodeURIComponent(q)}`).catch(() => ({ users: [] })),
     ])
-
     if (!isMounted) return
 
-    movieResults.value = tmdbData
-      ? (tmdbData.results || [])
-          .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
-          .slice(0, 6)
-          .map(r => ({
-            id:     r.id,
-            type:   r.media_type,
-            title:  r.title || r.name,
-            year:   (r.release_date || r.first_air_date || '').split('-')[0],
-            poster: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
-          }))
-      : []
+    movieResults.value = (tmdbData.results || [])
+      .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
+      .slice(0, 5)
+      .map(r => ({
+        id:     r.id,
+        type:   r.media_type,
+        title:  r.title || r.name,
+        year:   (r.release_date || r.first_air_date || '').split('-')[0],
+        poster: r.poster_path ? `${IMG_BASE}${r.poster_path}` : null,
+      }))
 
     userResults.value = userRes ? (userRes.users || []) : []
   } catch { /* fail silently */ }
   finally { if (isMounted) searching.value = false }
 }
 
-// ── Open / close helpers ──────────────────────────────────────────────────────
-const openSearch = () => { searchActive.value = true }
-
-// closeSearch is called explicitly (Escape, x-button, result click)
+// ── Open / close ──────────────────────────────────────────────────────────────
 const closeSearch = () => {
   searchActive.value = false
   query.value        = ''
@@ -113,15 +91,12 @@ const closeSearch = () => {
   userResults.value  = []
 }
 
-// Click outside: use 'pointerdown' so it fires before focus events
-// We use a slight delay so a result-click can finish its own handler first
+// click outside — 80 ms delay so result clicks can fire their own handler first
 let closeTimer = null
 const onPointerDown = (e) => {
   if (wrapperRef.value && !wrapperRef.value.contains(e.target)) {
     clearTimeout(closeTimer)
-    closeTimer = setTimeout(() => {
-      if (isMounted) searchActive.value = false
-    }, 80)
+    closeTimer = setTimeout(() => { if (isMounted) searchActive.value = false }, 80)
   }
 }
 onMounted(() => document.addEventListener('pointerdown', onPointerDown))
@@ -131,25 +106,18 @@ onUnmounted(() => {
   clearTimeout(debounceTimer)
 })
 
-// Close dropdown when navigating to a new page
-watch(() => route.path, () => { searchActive.value = false })
+// Close on navigation
+watch(() => route.path, closeSearch)
 
-// ── Navigate to result ────────────────────────────────────────────────────────
+// ── Result navigation ─────────────────────────────────────────────────────────
 const goToTitle = (item) => {
   closeSearch()
-  nextTick(() => router.push({ name: 'detail', params: { type: item.type, id: item.id } }))
+  router.push({ name: 'detail', params: { type: item.type, id: item.id } })
 }
 const goToUser = (u) => {
   closeSearch()
-  nextTick(() => router.push({ name: 'user-profile', params: { id: u.id } }))
+  router.push({ name: 'user-profile', params: { id: u.id } })
 }
-
-// ── Mode labels ───────────────────────────────────────────────────────────────
-const MODE_LABELS = computed(() => ({
-  all:    lang.value === 'fr' ? 'Tout'      : 'All',
-  titles: lang.value === 'fr' ? 'Titres'    : 'Titles',
-  people: lang.value === 'fr' ? 'Personnes' : 'People',
-}))
 
 // ── Notification count ────────────────────────────────────────────────────────
 const unreadCount = ref(0)
@@ -176,7 +144,7 @@ onUnmounted(() => clearInterval(unreadTimer))
   class="fixed top-0 left-0 md:left-64 right-0 z-40 flex items-center py-3 px-4 md:px-6 gap-3 font-body text-white transition-all duration-300"
   :class="scrolled ? 'backdrop-blur-2xl bg-[#0a0615]/80 border-b border-white/5' : 'bg-transparent'"
 >
-  <!-- Left: hamburger (mobile) + language toggle -->
+  <!-- Left: hamburger + language toggle -->
   <div class="flex items-center gap-2 flex-shrink-0">
     <button
       type="button"
@@ -199,64 +167,40 @@ onUnmounted(() => clearInterval(unreadTimer))
 
   <!-- Center: search -->
   <div ref="wrapperRef" class="flex-1 flex justify-center">
-    <div class="w-full max-w-2xl relative">
+    <div class="w-full max-w-2xl" style="position: relative;">
 
-      <!-- Search bar -->
+      <!-- Input bar -->
       <div
-        class="flex items-center gap-2 px-4 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md transition-all duration-200"
-        :class="searchActive ? 'ring-1 ring-purple-500/40' : ''"
+        class="flex items-center gap-2.5 px-4 h-11 rounded-xl bg-[#7C3AED]/20 backdrop-blur-md transition-all"
+        :style="searchActive ? 'box-shadow: 0 0 0 1px rgba(124,58,237,0.45);' : ''"
       >
-        <!-- Icon / spinner -->
-        <i
-          class="flex-shrink-0 text-sm"
-          :class="searching
-            ? 'fa-solid fa-circle-notch fa-spin text-white/40'
-            : 'fa-solid fa-magnifying-glass text-white/35'"
-        ></i>
+        <i class="fa-solid fa-magnifying-glass text-white/35 text-sm flex-shrink-0"></i>
 
-        <!-- Mode filter pills — only when active -->
-        <div v-if="searchActive" class="flex items-center gap-1 flex-shrink-0">
-          <button
-            v-for="m in ['all','titles','people']"
-            :key="m"
-            type="button"
-            class="px-2 py-0.5 rounded-md text-[10px] font-semibold transition border"
-            :class="searchMode === m
-              ? 'bg-purple-600/70 text-white border-purple-500/50'
-              : 'text-white/35 border-transparent hover:text-white/55 hover:border-white/15'"
-            @pointerdown.stop
-            @click.stop="searchMode = m"
-          >{{ MODE_LABELS[m] }}</button>
-          <span class="text-white/15 text-xs mx-0.5">|</span>
-        </div>
-
-        <!-- Input -->
         <input
-          ref="inputRef"
           v-model="query"
           type="search"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
-          name="tazama-search-x"
-          :placeholder="searchActive
-            ? searchMode === 'people'
-              ? (lang === 'fr' ? 'Nom d\'utilisateur…' : 'Username…')
-              : searchMode === 'titles'
-                ? (lang === 'fr' ? 'Film, série…' : 'Movie, series…')
-                : t.searchPlaceholder
-            : t.searchPlaceholder"
+          name="tazama-q"
+          :placeholder="t.searchPlaceholder"
           class="bg-transparent focus:outline-none w-full text-sm text-white/80 placeholder:text-white/30"
-          @focus="openSearch"
+          @focus="searchActive = true"
           @keydown.escape.stop="closeSearch"
         >
 
-        <!-- Clear -->
+        <!-- Spinner (absolutely positioned inside bar so it doesn't shift layout) -->
+        <i
+          class="fa-solid fa-circle-notch fa-spin text-white/35 text-xs flex-shrink-0 transition-opacity"
+          :style="searching ? 'opacity:1' : 'opacity:0; pointer-events:none'"
+        ></i>
+
+        <!-- Clear button -->
         <button
-          v-if="query"
           type="button"
           class="flex-shrink-0 text-white/30 hover:text-white/70 transition"
+          :style="query ? 'opacity:1' : 'opacity:0; pointer-events:none'"
           @pointerdown.stop
           @click.stop="closeSearch"
         >
@@ -264,141 +208,140 @@ onUnmounted(() => clearInterval(unreadTimer))
         </button>
       </div>
 
-      <!-- ── Dropdown ──────────────────────────────────────────────────────────
-           v-show keeps the DOM node alive → no insertBefore(null) crash.
-           The node is rendered once and just hidden with display:none when not needed.
+      <!--
+        Dropdown — v-show so the node is ALWAYS in the DOM.
+        Internal sections also use v-show (not v-if) so Vue never inserts/removes
+        nodes during parent re-renders → no nextSibling / insertBefore crash.
       -->
       <div
         v-show="dropdownVisible"
-        class="absolute top-full mt-2 left-0 right-0 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
-        style="background: #13111f; max-height: 440px; overflow-y: auto; z-index: 9999;"
+        class="absolute left-0 right-0 rounded-2xl border border-white/10 shadow-2xl overflow-hidden"
+        style="top: calc(100% + 8px); background:#13111f; max-height:430px; overflow-y:auto; z-index:9999;"
         @pointerdown.stop
       >
-        <!-- Searching indicator -->
-        <div v-if="searching" class="p-4 flex items-center justify-center gap-2 text-white/30 text-sm">
+        <!-- Loading row — v-show, not v-if -->
+        <div
+          v-show="showSearch"
+          class="flex items-center justify-center gap-2 py-5 text-white/30 text-sm"
+        >
           <i class="fa-solid fa-circle-notch fa-spin text-xs"></i>
           {{ lang === 'fr' ? 'Recherche…' : 'Searching…' }}
         </div>
 
-        <!-- No results -->
+        <!-- Empty row — v-show, not v-if -->
         <div
-          v-else-if="!hasResults && query.trim().length >= 2"
-          class="p-6 text-center"
+          v-show="showEmpty"
+          class="py-8 text-center"
         >
-          <i class="fa-solid fa-face-frown-open text-white/15 text-2xl mb-2 block"></i>
+          <i class="fa-solid fa-face-frown-open text-white/15 text-2xl block mb-2"></i>
           <p class="text-white/30 text-sm">{{ t.searchNoResults }}</p>
         </div>
 
-        <template v-else>
-          <!-- ── Titles section ── -->
-          <div v-if="filteredMovies.length">
-            <div class="px-4 pt-3 pb-1 flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">
-                <i class="fa-solid fa-film mr-1 text-purple-400/50"></i>{{ t.searchMovies }}
-              </span>
-            </div>
-            <button
-              v-for="item in filteredMovies"
-              :key="`m-${item.type}-${item.id}`"
-              type="button"
-              class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
-              @click.stop="goToTitle(item)"
-            >
-              <div class="w-9 h-[52px] rounded-lg overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center">
-                <img v-if="item.poster" :src="item.poster" :alt="item.title" class="w-full h-full object-cover" />
-                <i v-else class="fa-solid fa-film text-white/15 text-xs"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-white text-sm font-medium truncate">{{ item.title }}</p>
-                <p class="text-white/35 text-xs mt-0.5">
-                  {{ item.year }}
-                  <span class="mx-1 opacity-40">·</span>
-                  <span :class="item.type === 'movie' ? 'text-purple-400/60' : 'text-blue-400/60'">
-                    {{ item.type === 'movie'
-                        ? (lang === 'fr' ? 'Film' : 'Movie')
-                        : (lang === 'fr' ? 'Série' : 'Series') }}
-                  </span>
-                </p>
-              </div>
-              <i class="fa-solid fa-arrow-right text-[10px] text-white/15 flex-shrink-0"></i>
-            </button>
+        <!-- Titles section — v-show, not v-if -->
+        <div v-show="hasMovies && !showSearch">
+          <div class="px-4 pt-3 pb-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">
+              <i class="fa-solid fa-film mr-1 text-purple-400/50"></i>{{ t.searchMovies }}
+            </span>
           </div>
-
-          <!-- divider -->
-          <div v-if="filteredMovies.length && filteredUsers.length" class="h-px bg-white/6 mx-4 my-1"></div>
-
-          <!-- ── People section ── -->
-          <div v-if="filteredUsers.length">
-            <div class="px-4 pt-3 pb-1 flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">
-                <i class="fa-solid fa-users mr-1 text-purple-400/50"></i>{{ t.searchUsers }}
-              </span>
+          <button
+            v-for="item in movieResults"
+            :key="`m-${item.type}-${item.id}`"
+            type="button"
+            class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
+            @click.stop="goToTitle(item)"
+          >
+            <div class="w-9 h-[52px] rounded-lg overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center">
+              <img v-if="item.poster" :src="item.poster" :alt="item.title" class="w-full h-full object-cover" />
+              <i v-else class="fa-solid fa-film text-white/15 text-xs"></i>
             </div>
-            <button
-              v-for="u in filteredUsers"
-              :key="`u-${u.id}`"
-              type="button"
-              class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
-              @click.stop="goToUser(u)"
-            >
-              <div
-                class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-lg"
-                :style="u.plan === 'premium'
-                  ? 'background: linear-gradient(135deg,#d97706,#f59e0b);'
-                  : 'background: rgba(124,58,237,0.4);'"
-              >
-                {{ u.avatar || '🎬' }}
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-white text-sm font-medium truncate">{{ u.username }}</p>
-                <p class="text-white/35 text-xs mt-0.5">
-                  {{ u.plan === 'premium' ? '✦ Premium' : 'Standard' }}
-                  <template v-if="u.bio">
-                    <span class="mx-1 opacity-30">·</span>
-                    <span class="text-white/25 truncate">{{ u.bio.slice(0, 28) }}</span>
-                  </template>
-                </p>
-              </div>
-              <i class="fa-solid fa-arrow-right text-[10px] text-white/15 flex-shrink-0"></i>
-            </button>
-          </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">{{ item.title }}</p>
+              <p class="text-white/35 text-xs mt-0.5">
+                {{ item.year }}
+                <span class="mx-1 opacity-30">·</span>
+                <span :class="item.type === 'movie' ? 'text-purple-400/60' : 'text-blue-400/60'">
+                  {{ item.type === 'movie'
+                      ? (lang === 'fr' ? 'Film' : 'Movie')
+                      : (lang === 'fr' ? 'Série' : 'Series') }}
+                </span>
+              </p>
+            </div>
+            <i class="fa-solid fa-arrow-right text-[10px] text-white/15 flex-shrink-0"></i>
+          </button>
+        </div>
 
-          <div class="h-2"></div>
-        </template>
+        <!-- Divider — v-show, not v-if -->
+        <div
+          v-show="hasMovies && hasUsers && !showSearch"
+          class="h-px bg-white/6 mx-4 my-1"
+        ></div>
+
+        <!-- People section — v-show, not v-if -->
+        <div v-show="hasUsers && !showSearch">
+          <div class="px-4 pt-3 pb-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-white/25">
+              <i class="fa-solid fa-users mr-1 text-purple-400/50"></i>{{ t.searchUsers }}
+            </span>
+          </div>
+          <button
+            v-for="u in userResults"
+            :key="`u-${u.id}`"
+            type="button"
+            class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition text-left"
+            @click.stop="goToUser(u)"
+          >
+            <div
+              class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-lg"
+              style="background: rgba(124,58,237,0.4);"
+            >{{ u.avatar || '🎬' }}</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">{{ u.username }}</p>
+              <p class="text-white/35 text-xs mt-0.5">{{ u.plan === 'premium' ? '✦ Premium' : 'Standard' }}</p>
+            </div>
+            <i class="fa-solid fa-arrow-right text-[10px] text-white/15 flex-shrink-0"></i>
+          </button>
+        </div>
+
+        <!-- Bottom spacer — always present, keeps dropdown height stable -->
+        <div class="h-2"></div>
       </div>
 
     </div>
   </div>
 
-  <!-- Right: notification bell + profile pill -->
+  <!-- Right: bell + profile -->
   <div class="flex items-center gap-2 flex-shrink-0">
 
-    <!-- Bell -->
+    <!-- Notification bell -->
     <button
       type="button"
       class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-[#7C3AED]/20 text-white/60 hover:text-white transition"
       @click="router.push('/notifications')"
     >
       <i class="fa-solid fa-bell text-base"></i>
+      <!-- badge: opacity toggle avoids DOM insert/remove -->
       <span
-        v-if="unreadCount > 0"
-        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full text-[9px] font-bold flex items-center justify-center px-1"
+        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full text-[9px] font-bold flex items-center justify-center px-1 transition-opacity"
         style="background:#ef4444; color:white;"
+        :style="unreadCount > 0 ? 'opacity:1' : 'opacity:0; pointer-events:none'"
       >{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
     </button>
 
-    <!-- Profile pill -->
+    <!-- Profile pill — ONLY this element keeps the premium amber colour -->
     <button
       type="button"
       class="flex items-center gap-2.5 px-3.5 h-11 rounded-xl backdrop-blur-md cursor-pointer transition-all hover:opacity-85"
-      :class="isPremium ? 'bg-amber-500/20' : 'bg-[#7C3AED]/20'"
+      :style="isPremium
+        ? 'background: rgba(217,119,6,0.18);'
+        : 'background: rgba(124,58,237,0.2);'"
       @click="router.push('/settings')"
     >
       <div
         class="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
         :style="isPremium
-          ? 'background:linear-gradient(135deg,#d97706,#f59e0b);'
-          : 'background:rgba(124,58,237,0.55);'"
+          ? 'background: linear-gradient(135deg,#d97706,#f59e0b);'
+          : 'background: rgba(124,58,237,0.55);'"
       >
         <span v-if="user?.avatar">{{ user.avatar }}</span>
         <span v-else class="text-white font-bold">{{ user?.username?.[0]?.toUpperCase() || '?' }}</span>
@@ -406,10 +349,13 @@ onUnmounted(() => clearInterval(unreadTimer))
 
       <div class="hidden sm:flex flex-col leading-tight">
         <span class="text-sm font-semibold text-white">{{ user?.username || 'Account' }}</span>
-        <span v-if="isPremium" class="text-[10px] text-amber-400 flex items-center gap-1">
-          <i class="fa-solid fa-crown text-[8px]"></i>Premium
+        <span
+          class="text-[10px] flex items-center gap-1"
+          :style="isPremium ? 'color:#fbbf24' : 'color:#a78bfa'"
+        >
+          <i v-if="isPremium" class="fa-solid fa-crown text-[8px]"></i>
+          {{ isPremium ? 'Premium' : 'Standard' }}
         </span>
-        <span v-else class="text-[10px] text-purple-400">Standard</span>
       </div>
       <i class="fa-solid fa-chevron-right text-xs text-white/25 hidden sm:block"></i>
     </button>

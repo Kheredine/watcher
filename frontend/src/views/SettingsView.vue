@@ -5,12 +5,14 @@ import { useAuth } from '@/composables/useAuth'
 import { useI18n } from '@/composables/useI18n'
 import { useUserLibrary } from '@/composables/useUserLibrary'
 import { useUserPreferences } from '@/composables/useUserPreferences'
+import { useWatcherTitle } from '@/composables/useWatcherTitle'
 
 const router  = useRouter()
 const { user, isPremium, logout, apiFetch, updateUser } = useAuth()
 const { t, lang, setLang } = useI18n()
 const { liked, watchlist, watched, history } = useUserLibrary()
 const { prefs, getTopMoods, interactionCount } = useUserPreferences()
+const { watcherTitle, watcherLevel, loadTitle, syncLevel, totalInteractions } = useWatcherTitle()
 
 // ── Avatar options ────────────────────────────────────────────────────────────
 const AVATARS = ['🎬','🎭','🎥','🍿','🎞️','🦁','🌙','🔥','🎃','🌊','🐉','🌺',
@@ -39,7 +41,8 @@ const startEdit = () => {
     email:             user.value?.email     || '',
     avatar:            user.value?.avatar    || '🎬',
     bio:               user.value?.bio       || '',
-    is_discoverable:   user.value?.is_discoverable !== 0,
+    // Standard users are always discoverable; premium users can toggle
+    is_discoverable:   !isPremium.value ? true : (user.value?.is_discoverable !== 0),
     privacy_liked:     user.value?.privacy_liked     || 'public',
     privacy_watchlist: user.value?.privacy_watchlist || 'public',
     privacy_watched:   user.value?.privacy_watched   || 'public',
@@ -139,7 +142,6 @@ onMounted(() => {
   if (isPremium.value && hasActivity.value && !titleCached.value) generateTitle()
   else if (titleCached.value) title.value = titleCached.value
 })
-
 // ── Stats ──────────────────────────────────────────────────────────────────────
 const stats = computed(() => [
   { label: t.value.myLikes,     count: liked.value.length,     icon: 'fa-heart',          color: '#db2777' },
@@ -148,17 +150,26 @@ const stats = computed(() => [
   { label: t.value.myHistory,   count: history.value.length,   icon: 'fa-clock-rotate-left', color: '#6b7280' },
 ])
 
-// ── Social stats ──────────────────────────────────────────────────────────────
-const followerCount  = ref(0)
-const followingCount = ref(0)
-const loadSocialStats = async () => {
+// ── Reel Mates ────────────────────────────────────────────────────────────────
+const mateCount     = ref(0)
+const mates         = ref([])
+const showMatesList = ref(false)
+
+const loadMates = async () => {
   try {
-    const data = await apiFetch('/api/social/connections')
-    followerCount.value  = data.followers?.length || 0
-    followingCount.value = data.following?.length  || 0
+    const data = await apiFetch('/api/social/mates')
+    mateCount.value = data.count || 0
+    mates.value     = data.mates || []
   } catch { /* ignore */ }
 }
-onMounted(() => { if (user.value) loadSocialStats() })
+
+onMounted(async () => {
+  if (user.value) {
+    loadMates()
+    await loadTitle()
+    await syncLevel()
+  }
+})
 
 // ── Logout / Reset ────────────────────────────────────────────────────────────
 const handleLogout = async () => {
@@ -186,7 +197,7 @@ const memberSince = computed(() => {
   return d.toLocaleDateString(lang.value === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' })
 })
 
-const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pellicule' : 'Reel Mates')
+
 </script>
 
 <template>
@@ -209,19 +220,31 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <h1 class="text-xl font-bold text-white">{{ user?.username }}</h1>
-          <span v-if="isPremium"
+          <span v-show="isPremium"
                 class="text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1"
                 style="background: rgba(217,119,6,0.2); color: #fbbf24; border: 1px solid rgba(217,119,6,0.35);">
             <i class="fa-solid fa-crown text-[9px]"></i> Premium
           </span>
-          <span v-else
+          <span v-show="!isPremium"
                 class="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
                 style="background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3);">
             Standard
           </span>
         </div>
+        <!-- Watcher title badge -->
+        <div class="mt-1">
+          <span v-show="watcherLevel >= 1"
+                class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                style="background: rgba(124,58,237,0.18); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.3);">
+            🎬 {{ watcherTitle }}
+          </span>
+          <span v-show="watcherLevel === 0"
+                class="text-xs text-white/25 italic">
+            Novice Watcher — keep watching to level up!
+          </span>
+        </div>
         <p class="text-white/45 text-sm mt-0.5">{{ user?.email }}</p>
-        <p v-if="user?.bio" class="text-white/40 text-xs mt-1 italic">{{ user.bio }}</p>
+        <p v-show="user?.bio" class="text-white/40 text-xs mt-1 italic">{{ user?.bio }}</p>
         <p class="text-white/25 text-xs mt-1">{{ t.memberSince }} {{ memberSince }}</p>
       </div>
 
@@ -250,22 +273,54 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
       </div>
     </div>
 
-    <!-- ── Reel Mates (social stats) ─────────────────────────────────────── -->
-    <div class="flex gap-3">
-      <div class="flex-1 flex flex-col items-center gap-1 py-4 rounded-xl border border-white/7"
-           style="background: rgba(255,255,255,0.03);">
-        <span class="text-lg font-bold text-white">{{ followerCount }}</span>
-        <span class="text-[11px] text-white/40">{{ t.followers }}</span>
+    <!-- ── Reel Mates ────────────────────────────────────────────────────── -->
+    <div class="p-5 rounded-2xl border border-purple-500/20 flex flex-col gap-3"
+         style="background: rgba(124,58,237,0.05);">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-film text-purple-400/60 text-lg"></i>
+          <div>
+            <p class="text-white font-bold text-xl leading-none">{{ mateCount }}</p>
+            <p class="text-purple-400/70 text-[11px] font-semibold uppercase tracking-wider mt-0.5">Reel Mates</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="text-sm font-semibold px-4 py-2 rounded-xl transition border"
+          :style="showMatesList
+            ? 'background: rgba(124,58,237,0.3); color: #c4b5fd; border-color: rgba(124,58,237,0.5);'
+            : 'background: rgba(124,58,237,0.1); color: #a78bfa; border-color: rgba(124,58,237,0.3);'"
+          @click="showMatesList = !showMatesList"
+        >
+          <i class="fa-solid fa-users text-xs mr-1.5"></i>
+          {{ showMatesList ? 'Hide' : 'View Reel Mates' }}
+        </button>
       </div>
-      <div class="flex-1 flex flex-col items-center gap-1 py-4 rounded-xl border border-white/7"
-           style="background: rgba(255,255,255,0.03);">
-        <span class="text-lg font-bold text-white">{{ followingCount }}</span>
-        <span class="text-[11px] text-white/40">{{ t.following }}</span>
-      </div>
-      <div class="flex-2 flex flex-col items-center justify-center gap-1 py-4 px-6 rounded-xl border border-purple-500/20"
-           style="background: rgba(124,58,237,0.06);">
-        <span class="text-[11px] font-bold text-purple-400/70 uppercase tracking-wider">{{ reelMatesLabel }}</span>
-        <span class="text-xs text-white/30 text-center">{{ followerCount + followingCount }} connections</span>
+
+      <!-- Mates list -->
+      <div v-show="showMatesList" class="flex flex-col gap-2 mt-1">
+        <div v-show="!mates.length" class="text-white/30 text-sm italic text-center py-4">
+          No Reel Mates yet — start connecting! 🎬
+        </div>
+        <div
+          v-for="mate in mates"
+          :key="mate.id"
+          class="flex items-center gap-3 p-3 rounded-xl border border-white/8 cursor-pointer hover:border-purple-500/30 transition"
+          style="background: rgba(255,255,255,0.03);"
+          @click="$router.push(`/profile/${mate.id}`)"
+        >
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+               :style="mate.plan === 'premium'
+                 ? 'background: linear-gradient(135deg, #d97706, #f59e0b);'
+                 : 'background: linear-gradient(135deg, #5b21b6, #7c3aed);'">
+            {{ mate.avatar }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-sm font-semibold">{{ mate.username }}</p>
+            <p v-show="mate.watcher_title" class="text-purple-400/60 text-xs">🎬 {{ mate.watcher_title }}</p>
+          </div>
+          <i class="fa-solid fa-chevron-right text-white/20 text-xs flex-shrink-0"></i>
+        </div>
       </div>
     </div>
 
@@ -312,9 +367,30 @@ const reelMatesLabel = computed(() => lang.value === 'fr' ? 'Compagnons de Pelli
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm text-white/80 font-medium">{{ t.discoverability }}</p>
-          <p class="text-xs text-white/35 mt-0.5">{{ t.discoverabilityDesc }}</p>
+          <p class="text-xs text-white/35 mt-0.5">
+            <template v-if="!isPremium">
+              <i class="fa-solid fa-lock text-[9px] mr-1 text-amber-400/60"></i>
+              Standard users are always discoverable — upgrade to control this
+            </template>
+            <template v-else>{{ t.discoverabilityDesc }}</template>
+          </p>
         </div>
+        <!-- Standard: always on, disabled -->
         <button
+          v-if="!isPremium"
+          type="button"
+          class="relative w-12 h-6 rounded-full flex-shrink-0 cursor-not-allowed opacity-60"
+          style="background: #7c3aed;"
+          disabled
+        >
+          <span
+            class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md"
+            style="transform: translateX(1.5rem);"
+          ></span>
+        </button>
+        <!-- Premium: fully interactive -->
+        <button
+          v-else
           type="button"
           class="relative w-12 h-6 rounded-full flex-shrink-0 cursor-pointer"
           style="transition: background 0.2s;"
